@@ -601,9 +601,18 @@ class LocalPortfolioManager {
             changeElement.className = `category-change ${changeClass}`;
         }
 
-        // 更新權重
-        const weight = totalAssets > 0 ? (totals.value / totalAssets) * 100 : 0;
-        weightElement.textContent = `${weight.toFixed(1)}%`;
+        // 更新權重百分比
+        if (isLiability) {
+            // 負債顯示債務比率（負債/總資產）
+            const debtRatio = totalAssets > 0 ? (totals.value / totalAssets) * 100 : 0;
+            weightElement.textContent = `${debtRatio.toFixed(0)}% 債務比`;
+            weightElement.style.color = debtRatio > 100 ? '#f44336' : '#ff9800';
+        } else {
+            // 正常資產顯示配置比例
+            const weight = totalAssets > 0 ? (totals.value / totalAssets) * 100 : 0;
+            weightElement.textContent = `${weight.toFixed(1)}%`;
+            weightElement.style.color = '#64ffda';
+        }
     }
 
     /**
@@ -1104,18 +1113,6 @@ class LocalPortfolioManager {
      */
     showConfigGuide() {
         window.open('https://github.com/eric0000567/juiyuan.liu/blob/main/CONFIG_GUIDE.md', '_blank');
-    }
-
-    /**
-     * 清除歷史數據
-     */
-    clearHistoryData() {
-        if (confirm('確定要清除所有歷史數據嗎？此操作無法撤銷。')) {
-            this.priceHistory = [];
-            this.saveHistoryData();
-            this.updatePerformanceChart();
-            this.showNotification('歷史數據已清除', 'success');
-        }
     }
 
     /**
