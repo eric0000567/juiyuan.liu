@@ -208,22 +208,10 @@
 
 /* Asset Categories */
 .asset-categories {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
     margin-bottom: 4rem;
-}
-
-@media (max-width: 1200px) {
-    .asset-categories {
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    }
-}
-
-@media (max-width: 768px) {
-    .asset-categories {
-        grid-template-columns: 1fr;
-    }
 }
 
 .category-card {

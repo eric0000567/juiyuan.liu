@@ -154,7 +154,7 @@ class LocalPortfolioManager {
         }
     }
 
-    /**
+        /**
      * 載入類別詳情
      */
     loadCategoryDetails(category) {
@@ -166,7 +166,14 @@ class LocalPortfolioManager {
             return;
         }
 
-                    const detailsHTML = assets.map(asset => {
+        // 按資產價值排序（價值大的排前面）
+        const sortedAssets = [...assets].sort((a, b) => {
+            const valueA = this.calculateAssetValue(a, category);
+            const valueB = this.calculateAssetValue(b, category);
+            return valueB - valueA;
+        });
+
+        const detailsHTML = sortedAssets.map(asset => {
             const currentPrice = this.getCurrentPrice(asset, category);
             const totalValue = this.calculateAssetValue(asset, category);
             const change = this.calculateAssetChange(asset, currentPrice, category);
@@ -587,12 +594,27 @@ class LocalPortfolioManager {
     updateCategoryCards() {
         const totals = this.calculateTotals();
 
-        // 更新各類別
-        this.updateCategoryCard('crypto', totals.crypto, totals.totalAssets);
-        this.updateCategoryCard('taiwanStocks', totals.taiwanStocks, totals.totalAssets);
-        this.updateCategoryCard('cash', totals.cash, totals.totalAssets);
-        this.updateCategoryCard('forex', totals.forex, totals.totalAssets);
-        this.updateCategoryCard('liabilities', totals.liabilities, totals.totalAssets, true);
+        // 建立類別數據陣列並按價值排序
+        const categories = [
+            { key: 'crypto', data: totals.crypto, isLiability: false },
+            { key: 'taiwanStocks', data: totals.taiwanStocks, isLiability: false },
+            { key: 'cash', data: totals.cash, isLiability: false },
+            { key: 'forex', data: totals.forex, isLiability: false },
+            { key: 'liabilities', data: totals.liabilities, isLiability: true }
+        ];
+
+        // 按價值排序（價值大的排前面）
+        categories.sort((a, b) => b.data.value - a.data.value);
+
+        // 重新排列 DOM 元素
+        const container = document.getElementById('assetCategories');
+        categories.forEach(category => {
+            const card = document.querySelector(`[data-category="${category.key}"]`);
+            if (card) {
+                container.appendChild(card);
+                this.updateCategoryCard(category.key, category.data, totals.totalAssets, category.isLiability);
+            }
+        });
     }
 
     /**
