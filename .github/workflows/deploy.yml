@@ -1,0 +1,87 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm install -g html-minifier-terser
+        npm install -g clean-css-cli
+        npm install -g terser
+    
+    - name: Optimize files
+      run: |
+        # Create optimized directory
+        mkdir -p dist
+        
+        # Minify HTML
+        html-minifier-terser \
+          --collapse-whitespace \
+          --remove-comments \
+          --remove-optional-tags \
+          --remove-redundant-attributes \
+          --remove-script-type-attributes \
+          --remove-tag-whitespace \
+          --use-short-doctype \
+          --minify-css true \
+          --minify-js true \
+          index.html -o dist/index.html
+        
+        # Minify CSS
+        cleancss -o dist/styles.css styles.css
+        
+        # Minify JavaScript
+        terser script.js -o dist/script.js --compress --mangle
+        
+        # Copy other assets if any
+        cp -r assets dist/ 2>/dev/null || true
+        cp *.png dist/ 2>/dev/null || true
+        cp *.jpg dist/ 2>/dev/null || true
+        cp *.ico dist/ 2>/dev/null || true
+        cp *.xml dist/ 2>/dev/null || true
+        cp *.txt dist/ 2>/dev/null || true
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './dist'
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+      
+    - name: Performance check
+      run: |
+        echo "🚀 網站已成功部署到 GitHub Pages！"
+        echo "📊 文件大小統計："
+        ls -lh dist/
+        echo "🔗 您的網站將在幾分鐘內可訪問：https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" 

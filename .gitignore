@@ -1,0 +1,68 @@
+# 依賴文件
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 構建輸出
+dist/
+build/
+*.min.js
+*.min.css
+
+# 環境變量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 編輯器配置
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系統文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 日誌文件
+logs
+*.log
+
+# 緩存目錄
+.cache/
+.parcel-cache/
+
+# 測試覆蓋率
+coverage/
+.nyc_output/
+
+# 臨時文件
+*.tmp
+*.temp
+
+# 備份文件
+*.bak
+*.backup
+
+# 壓縮文件
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# 本地開發
+.local
+.vercel 

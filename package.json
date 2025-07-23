@@ -1,0 +1,63 @@
+{
+  "name": "jui-yuan-liu-portfolio",
+  "version": "1.0.0",
+  "description": "劉瑞源的個人網站 - 資料科學工程師作品集",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "npx live-server --port=3000 --open=/index.html",
+    "build": "npm run minify:html && npm run minify:css && npm run minify:js",
+    "minify:html": "html-minifier-terser --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true index.html -o dist/index.html",
+    "minify:css": "cleancss -o dist/styles.css styles.css",
+    "minify:js": "terser script.js -o dist/script.js --compress --mangle",
+    "lint:html": "html-validate index.html",
+    "lint:css": "stylelint styles.css",
+    "lint:js": "eslint script.js",
+    "lint": "npm run lint:html && npm run lint:css && npm run lint:js",
+    "performance": "lighthouse http://localhost:8000 --view",
+    "deploy": "gh-pages -d dist",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean && mkdir -p dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/juiyuan.liu.git"
+  },
+  "keywords": [
+    "portfolio",
+    "personal-website",
+    "data-science",
+    "engineer",
+    "taiwan",
+    "github-pages",
+    "ci-cd"
+  ],
+  "author": {
+    "name": "劉瑞源 (Jui-Yuan Liu)",
+    "email": "eric0000567@gmail.com",
+    "url": "https://yourusername.github.io/juiyuan.liu"
+  },
+  "license": "MIT",
+  "homepage": "https://yourusername.github.io/juiyuan.liu",
+  "devDependencies": {
+    "clean-css-cli": "^5.6.2",
+    "eslint": "^8.56.0",
+    "gh-pages": "^6.1.0",
+    "html-minifier-terser": "^7.2.0",
+    "html-validate": "^8.7.4",
+    "lighthouse": "^11.4.0",
+    "live-server": "^1.2.2",
+    "stylelint": "^16.1.0",
+    "terser": "^5.26.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+} 
