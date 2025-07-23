@@ -8,71 +8,61 @@
   "assets": {
     "crypto": [
       {
-        "id": "btc_holding",
-        "symbol": "BTC",
-        "name": "比特幣",
-        "quantity": 0.5,
-        "averageCost": 80000,
+        "id": "usdt_holding",
+        "symbol": "USDT",
+        "name": "USDT",
+        "quantity": 3000,
+        "averageCost": 1,
         "priceCurrency": "USDT",
-        "purchaseDate": "2023-06-15",
-        "dividendRate": 0,
+        "purchaseDate": "2025-06-15",
+        "dividendRate": 10,
         "notes": "長期持有策略 - 以USDT計價",
         "platform": "幣安"
+      },{
+        "id": "max_holding",
+        "symbol": "MAX",
+        "name": "MAX",
+        "quantity": 21000,
+        "averageCost": 0.32,
+        "priceCurrency": "USDT",
+        "purchaseDate": "2021-06-15",
+        "dividendRate": 12.5,
+        "notes": "長期持有策略 - 以USDT計價",
+        "platform": "MAX"
       },
       {
         "id": "eth_holding", 
         "symbol": "ETH",
-        "name": "以太幣",
-        "quantity": 5.0,
-        "averageCost": 2800,
+        "name": "ETH",
+        "quantity": 1.3,
+        "averageCost": 2622,
         "priceCurrency": "USDT",
-        "purchaseDate": "2023-08-20",
-        "dividendRate": 0,
+        "purchaseDate": "2025-04-20",
+        "dividendRate": 2.73,
         "notes": "DeFi 生態系統投資 - 以USDT計價",
         "platform": "幣安"
       }
     ],
     "taiwanStocks": [
-      {
-        "id": "tsmc_holding",
-        "symbol": "2330.TW",
-        "name": "台積電",
-        "quantity": 100,
-        "averageCost": 480,
-        "purchaseDate": "2023-05-10",
-        "dividendRate": 2.8,
-        "notes": "半導體龍頭股",
-        "broker": "富邦證券"
-      },
-      {
-        "id": "cathay_holding",
-        "symbol": "2882.TW", 
-        "name": "國泰金",
-        "quantity": 50,
-        "averageCost": 42.5,
-        "purchaseDate": "2023-07-01",
-        "dividendRate": 5.2,
-        "notes": "金融股息收入",
-        "broker": "富邦證券"
-      }
+      
     ],
     "cash": [
       {
         "id": "twd_savings",
         "symbol": "TWD",
-        "name": "台幣定存",
-        "quantity": 500000,
+        "name": "LineBank活存",
+        "quantity": 5000,
         "averageCost": 1,
         "purchaseDate": "2023-01-01",
         "dividendRate": 1.5,
         "notes": "緊急預備金",
-        "bank": "國泰世華銀行"
+        "bank": "LINE Bank"
       },
       {
         "id": "twd_current",
-        "symbol": "TWD_CURRENT",
+        "symbol": "TWD",
         "name": "台幣活存",
-        "quantity": 150000,
+        "quantity": 6000,
         "averageCost": 1,
         "purchaseDate": "2023-01-01", 
         "dividendRate": 0.1,
@@ -81,53 +71,20 @@
       }
     ],
     "forex": [
-      {
-        "id": "usd_holding",
-        "symbol": "USD",
-        "name": "美元外匯",
-        "quantity": 5000,
-        "averageCost": 31.2,
-        "purchaseDate": "2023-04-15",
-        "dividendRate": 0,
-        "notes": "美元投資避險",
-        "platform": "台灣銀行"
-      },
-      {
-        "id": "jpy_holding",
-        "symbol": "JPY", 
-        "name": "日圓外匯",
-        "quantity": 200000,
-        "averageCost": 0.22,
-        "purchaseDate": "2023-09-10",
-        "dividendRate": 0,
-        "notes": "日本旅遊基金",
-        "platform": "台灣銀行"
-      }
+      
     ],
     "liabilities": [
       {
-        "id": "house_loan",
-        "symbol": "HOUSE_MORTGAGE",
-        "name": "房屋貸款",
-        "quantity": 1,
-        "amount": 8000000,
-        "interestRate": 2.1,
-        "startDate": "2022-03-01",
-        "termYears": 30,
-        "notes": "自住房屋貸款",
-        "bank": "國泰世華銀行"
-      },
-      {
-        "id": "credit_card",
+        "id": "credit_debt",
         "symbol": "CREDIT_DEBT",
-        "name": "信用卡債務",
+        "name": "信用貸款",
         "quantity": 1,
-        "amount": 0,
-        "interestRate": 15.0,
-        "startDate": "2023-01-01",
-        "termYears": 0,
-        "notes": "信用卡循環利息",
-        "bank": "國泰世華銀行"
+        "amount": 1354176,
+        "interestRate": 3.18,
+        "startDate": "2025-02-08",
+        "termYears": 10,
+        "notes": "信貸",
+        "bank": "LINE Bank"
       }
     ]
   },
