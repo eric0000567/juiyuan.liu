@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資產組合管理 - 劉瑞源</title>
+    <meta name="description" content="個人資產組合管理系統，實時追蹤投資組合價值變化">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="portfolio-styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <h2><a href="index.html">劉瑞源</a></h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html#about" class="nav-link">關於我</a>
+                </li>
+                <li class="nav-item">
+                    <a href="index.html#experience" class="nav-link">工作經歷</a>
+                </li>
+                <li class="nav-item">
+                    <a href="index.html#projects" class="nav-link">作品集</a>
+                </li>
+                <li class="nav-item">
+                    <a href="portfolio.html" class="nav-link active">資產組合</a>
+                </li>
+                <li class="nav-item">
+                    <a href="index.html#contact" class="nav-link">聯絡方式</a>
+                </li>
+            </ul>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Portfolio Header -->
+    <section class="portfolio-header">
+        <div class="container">
+            <h1 class="portfolio-title">個人資產組合管理</h1>
+            <p class="portfolio-subtitle">實時追蹤投資組合，智能分析資產配置</p>
+            
+            <!-- Portfolio Summary Cards -->
+            <div class="portfolio-summary">
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>總資產價值</h3>
+                        <p class="total-value" id="totalValue">$0.00</p>
+                        <span class="change-indicator" id="totalChange">+0.00%</span>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>資產項目</h3>
+                        <p class="asset-count" id="assetCount">0</p>
+                        <span class="asset-types" id="assetTypes">0 種類型</span>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="card-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>最後更新</h3>
+                        <p class="last-update" id="lastUpdate">尚未更新</p>
+                        <span class="update-status" id="updateStatus">即時同步</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Management -->
+    <section class="portfolio-management">
+        <div class="container">
+            <div class="management-header">
+                <h2>資產管理</h2>
+                <button class="btn-primary" id="addAssetBtn">
+                    <i class="fas fa-plus"></i>
+                    新增資產
+                </button>
+            </div>
+
+            <!-- Asset List -->
+            <div class="asset-list" id="assetList">
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-chart-pie"></i>
+                    <h3>開始建立您的投資組合</h3>
+                    <p>新增您的第一個資產項目來開始追蹤</p>
+                    <button class="btn-secondary" onclick="openAddAssetModal()">新增資產</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="portfolio-charts">
+        <div class="container">
+            <div class="charts-grid">
+                <!-- Asset Allocation Chart -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>資產配置</h3>
+                        <div class="chart-controls">
+                            <button class="chart-toggle active" data-chart="pie">圓餅圖</button>
+                            <button class="chart-toggle" data-chart="doughnut">環狀圖</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="allocationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Historical Performance Chart -->
+                <div class="chart-container full-width">
+                    <div class="chart-header">
+                        <h3>歷史表現</h3>
+                        <div class="chart-controls">
+                            <button class="time-toggle active" data-period="7d">7天</button>
+                            <button class="time-toggle" data-period="30d">30天</button>
+                            <button class="time-toggle" data-period="90d">90天</button>
+                            <button class="time-toggle" data-period="1y">1年</button>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Add Asset Modal -->
+    <div class="modal" id="addAssetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>新增資產</h3>
+                <button class="modal-close" onclick="closeAddAssetModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form class="asset-form" id="assetForm">
+                <div class="form-group">
+                    <label for="assetType">資產類型</label>
+                    <select id="assetType" required>
+                        <option value="">請選擇資產類型</option>
+                        <option value="stock">股票</option>
+                        <option value="crypto">加密貨幣</option>
+                        <option value="forex">外匯</option>
+                        <option value="commodity">商品</option>
+                        <option value="bond">債券</option>
+                        <option value="real-estate">房地產</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="assetSymbol">代碼/符號</label>
+                    <input type="text" id="assetSymbol" placeholder="例：AAPL, BTC, USD/TWD" required>
+                    <small>股票代碼、加密貨幣符號或其他識別碼</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="assetName">資產名稱</label>
+                    <input type="text" id="assetName" placeholder="例：蘋果公司" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="quantity">數量</label>
+                        <input type="number" id="quantity" step="0.000001" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="purchasePrice">購入價格</label>
+                        <input type="number" id="purchasePrice" step="0.01" min="0" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="purchaseDate">購入日期</label>
+                    <input type="date" id="purchaseDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">備註</label>
+                    <textarea id="notes" placeholder="投資理由、策略或其他備註"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAddAssetModal()">取消</button>
+                    <button type="submit" class="btn-primary">新增資產</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>正在獲取最新價格...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script src="portfolio-script.js"></script>
+</body>
+</html> 

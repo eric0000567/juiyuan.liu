@@ -39,7 +39,7 @@ jobs:
         # Create optimized directory
         mkdir -p dist
         
-        # Minify HTML
+        # Minify HTML files
         html-minifier-terser \
           --collapse-whitespace \
           --remove-comments \
@@ -51,20 +51,35 @@ jobs:
           --minify-css true \
           --minify-js true \
           index.html -o dist/index.html
+          
+        html-minifier-terser \
+          --collapse-whitespace \
+          --remove-comments \
+          --remove-optional-tags \
+          --remove-redundant-attributes \
+          --remove-script-type-attributes \
+          --remove-tag-whitespace \
+          --use-short-doctype \
+          --minify-css true \
+          --minify-js true \
+          portfolio.html -o dist/portfolio.html
         
-        # Minify CSS
+        # Minify CSS files
         cleancss -o dist/styles.css styles.css
+        cleancss -o dist/portfolio-styles.css portfolio-styles.css
         
-        # Minify JavaScript
+        # Minify JavaScript files
         terser script.js -o dist/script.js --compress --mangle
+        terser portfolio-script.js -o dist/portfolio-script.js --compress --mangle
         
-        # Copy other assets if any
+        # Copy other assets and configuration files
+        cp manifest.json dist/ 2>/dev/null || true
+        cp robots.txt dist/ 2>/dev/null || true
         cp -r assets dist/ 2>/dev/null || true
         cp *.png dist/ 2>/dev/null || true
         cp *.jpg dist/ 2>/dev/null || true
         cp *.ico dist/ 2>/dev/null || true
         cp *.xml dist/ 2>/dev/null || true
-        cp *.txt dist/ 2>/dev/null || true
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
