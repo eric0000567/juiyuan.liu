@@ -1,14 +1,15 @@
 /**
- * 個人資產組合管理系統
- * 功能：資產管理、實時價格獲取、歷史數據記錄、圖表展示
+ * 本地配置式個人投資組合管理系統
+ * 功能：讀取本地配置、實時價格獲取、配息計算、負債利息追蹤
  */
 
-class PortfolioManager {
+class LocalPortfolioManager {
     constructor() {
-        this.assets = [];
+        this.config = null;
+        this.currentPrices = {};
+        this.exchangeRates = {};
         this.priceHistory = [];
         this.charts = {};
-        this.apiKey = null; // 可以設置 API Key
         this.lastUpdate = null;
         this.updateInterval = null;
         
@@ -18,43 +19,85 @@ class PortfolioManager {
     /**
      * 初始化系統
      */
-    init() {
-        this.loadData();
-        this.setupEventListeners();
-        this.updateDisplay();
-        this.initCharts();
-        this.startAutoUpdate();
+    async init() {
+        try {
+            await this.loadConfig();
+            this.loadHistoryData();
+            this.setupEventListeners();
+            await this.updateAllPrices();
+            this.updateDisplay();
+            this.initCharts();
+            this.startAutoUpdate();
+            this.recordSnapshot();
+        } catch (error) {
+            console.error('初始化失敗：', error);
+            this.showConfigModal();
+        }
+    }
+
+    /**
+     * 載入配置檔案
+     */
+    async loadConfig() {
+        try {
+            const response = await fetch('./portfolio-config.json');
+            if (!response.ok) {
+                throw new Error('無法載入配置檔案');
+            }
+            this.config = await response.json();
+            console.log('配置載入成功:', this.config);
+        } catch (error) {
+            console.error('載入配置檔案失敗：', error);
+            // 使用預設配置
+            this.config = this.getDefaultConfig();
+            throw error;
+        }
+    }
+
+    /**
+     * 獲取預設配置
+     */
+    getDefaultConfig() {
+        return {
+            portfolioInfo: {
+                name: "個人投資組合",
+                baseCurrency: "TWD"
+            },
+            assets: {
+                crypto: [],
+                taiwanStocks: [],
+                cash: [],
+                forex: [],
+                liabilities: []
+            },
+            displaySettings: {
+                showPublic: {
+                    totalValue: true,
+                    assetAllocation: true,
+                    historicalChart: true,
+                    dividendIncome: true
+                }
+            }
+        };
     }
 
     /**
      * 設定事件監聽器
      */
     setupEventListeners() {
-        // 新增資產按鈕
-        document.getElementById('addAssetBtn').addEventListener('click', () => {
-            this.openAddAssetModal();
-        });
-
-        // 資產表單提交
-        document.getElementById('assetForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAssetFormSubmit();
-        });
-
-        // 模態框關閉
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
-                this.closeAddAssetModal();
-            }
-        });
-
-        // 圖表控制按鈕
-        document.querySelectorAll('.chart-toggle').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.handleChartToggle(e);
+        // 類別卡片點擊展開/收起
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                this.toggleCategoryDetails(e.currentTarget);
             });
         });
 
+        // 配置說明按鈕
+        document.querySelector('.config-info').addEventListener('click', () => {
+            this.showConfigModal();
+        });
+
+        // 圖表控制按鈕
         document.querySelectorAll('.time-toggle').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.handleTimeToggle(e);
@@ -64,315 +107,285 @@ class PortfolioManager {
         // 鍵盤快捷鍵
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.closeAddAssetModal();
+                this.closeConfigModal();
+            }
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                e.preventDefault();
+                this.refreshData();
             }
         });
     }
 
     /**
-     * 開啟新增資產模態框
+     * 切換類別詳情顯示
      */
-    openAddAssetModal() {
-        const modal = document.getElementById('addAssetModal');
-        modal.classList.add('show');
+    toggleCategoryDetails(card) {
+        const isExpanded = card.classList.contains('expanded');
         
-        // 設定今天為預設日期
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('purchaseDate').value = today;
-        
-        // 聚焦到第一個輸入框
-        setTimeout(() => {
-            document.getElementById('assetType').focus();
-        }, 100);
+        // 關閉所有其他展開的卡片
+        document.querySelectorAll('.category-card.expanded').forEach(c => {
+            c.classList.remove('expanded');
+        });
+
+        if (!isExpanded) {
+            card.classList.add('expanded');
+            this.loadCategoryDetails(card.dataset.category);
+        }
     }
 
     /**
-     * 關閉新增資產模態框
+     * 載入類別詳情
      */
-    closeAddAssetModal() {
-        const modal = document.getElementById('addAssetModal');
-        modal.classList.remove('show');
-        document.getElementById('assetForm').reset();
-    }
+    loadCategoryDetails(category) {
+        const detailsContainer = document.getElementById(`${category}Details`);
+        const assets = this.config.assets[category] || [];
 
-    /**
-     * 處理資產表單提交
-     */
-    async handleAssetFormSubmit() {
-        const formData = {
-            type: document.getElementById('assetType').value,
-            symbol: document.getElementById('assetSymbol').value.toUpperCase(),
-            name: document.getElementById('assetName').value,
-            quantity: parseFloat(document.getElementById('quantity').value),
-            purchasePrice: parseFloat(document.getElementById('purchasePrice').value),
-            purchaseDate: document.getElementById('purchaseDate').value,
-            notes: document.getElementById('notes').value,
-            id: Date.now().toString(),
-            addedAt: new Date().toISOString()
-        };
-
-        // 驗證數據
-        if (!this.validateAssetData(formData)) {
+        if (assets.length === 0) {
+            detailsContainer.innerHTML = '<p style="color: #b0bec5; text-align: center; padding: 1rem;">暫無資料</p>';
             return;
         }
 
-        // 顯示載入動畫
-        this.showLoading();
-
-        try {
-            // 嘗試獲取當前價格
-            const currentPrice = await this.fetchCurrentPrice(formData.symbol, formData.type);
-            formData.currentPrice = currentPrice;
-            formData.lastPriceUpdate = new Date().toISOString();
-
-            // 新增資產
-            this.assets.push(formData);
-            this.saveData();
-            this.updateDisplay();
-            this.updateCharts();
+        const detailsHTML = assets.map(asset => {
+            const currentPrice = this.getCurrentPrice(asset, category);
+            const totalValue = this.calculateAssetValue(asset, category);
+            const change = this.calculateAssetChange(asset, currentPrice, category);
             
-            // 記錄歷史數據
-            this.recordPriceHistory();
+            return `
+                <div class="asset-detail">
+                    <div class="asset-detail-info">
+                        <h4>${asset.name}</h4>
+                        <p>${asset.symbol} • ${this.formatQuantity(asset.quantity, category)}</p>
+                    </div>
+                    <div class="asset-detail-value">
+                        <div class="price">$${this.formatNumber(totalValue)}</div>
+                        <div class="change ${change.className}">${change.text}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
-            this.closeAddAssetModal();
-            this.hideLoading();
-            this.showNotification('資產新增成功！', 'success');
-
-        } catch (error) {
-            console.error('新增資產時發生錯誤：', error);
-            this.hideLoading();
-            this.showNotification('獲取價格失敗，請稍後再試', 'error');
-        }
-    }
-
-    /**
-     * 驗證資產數據
-     */
-    validateAssetData(data) {
-        if (!data.type || !data.symbol || !data.name) {
-            this.showNotification('請填寫所有必要欄位', 'error');
-            return false;
-        }
-
-        if (data.quantity <= 0 || data.purchasePrice <= 0) {
-            this.showNotification('數量和價格必須大於 0', 'error');
-            return false;
-        }
-
-        // 檢查是否已存在相同資產
-        const exists = this.assets.some(asset => 
-            asset.symbol === data.symbol && asset.type === data.type
-        );
-
-        if (exists) {
-            this.showNotification('此資產已存在，請使用編輯功能修改數量', 'warning');
-            return false;
-        }
-
-        return true;
+        detailsContainer.innerHTML = detailsHTML;
     }
 
     /**
      * 獲取當前價格
      */
-    async fetchCurrentPrice(symbol, type) {
-        try {
-            let price = null;
-
-            switch (type) {
-                case 'crypto':
-                    price = await this.fetchCryptoPrice(symbol);
-                    break;
-                case 'stock':
-                    price = await this.fetchStockPrice(symbol);
-                    break;
-                case 'forex':
-                    price = await this.fetchForexPrice(symbol);
-                    break;
-                default:
-                    // 對於其他類型，返回購入價格作為預設
-                    price = null;
-            }
-
-            return price;
-
-        } catch (error) {
-            console.error(`獲取 ${symbol} 價格失敗：`, error);
-            return null;
+    getCurrentPrice(asset, category) {
+        if (category === 'cash') {
+            return asset.averageCost; // 現金價格固定為1
         }
+        
+        if (category === 'liabilities') {
+            return asset.amount; // 負債金額
+        }
+
+        return this.currentPrices[asset.symbol] || asset.averageCost;
     }
 
     /**
-     * 獲取加密貨幣價格
+     * 計算資產價值
      */
-    async fetchCryptoPrice(symbol) {
-        try {
-            // 使用 CoinGecko 免費 API
-            const coinGeckoMap = {
-                'BTC': 'bitcoin',
-                'ETH': 'ethereum',
-                'USDT': 'tether',
-                'BNB': 'binancecoin',
-                'ADA': 'cardano',
-                'SOL': 'solana',
-                'XRP': 'ripple',
-                'DOT': 'polkadot',
-                'DOGE': 'dogecoin',
-                'AVAX': 'avalanche-2'
+    calculateAssetValue(asset, category) {
+        if (category === 'cash') {
+            return asset.quantity;
+        }
+        
+        if (category === 'liabilities') {
+            return asset.amount;
+        }
+
+        const currentPrice = this.getCurrentPrice(asset, category);
+        return currentPrice * asset.quantity;
+    }
+
+    /**
+     * 計算資產變化
+     */
+    calculateAssetChange(asset, currentPrice, category) {
+        if (category === 'cash' || category === 'liabilities') {
+            const rate = asset.dividendRate || asset.interestRate || 0;
+            return {
+                className: rate > 0 ? 'positive' : 'neutral',
+                text: `${rate}% 年利率`
             };
-
-            const coinId = coinGeckoMap[symbol] || symbol.toLowerCase();
-            const response = await fetch(
-                `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`
-            );
-
-            if (!response.ok) throw new Error('API 響應失敗');
-
-            const data = await response.json();
-            return data[coinId]?.usd || null;
-
-        } catch (error) {
-            console.error('獲取加密貨幣價格失敗：', error);
-            return null;
         }
+
+        if (!currentPrice || currentPrice === asset.averageCost) {
+            return { className: 'neutral', text: '0.00%' };
+        }
+
+        const changePercent = ((currentPrice - asset.averageCost) / asset.averageCost) * 100;
+        const className = changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral';
+        const sign = changePercent >= 0 ? '+' : '';
+        
+        return {
+            className,
+            text: `${sign}${changePercent.toFixed(2)}%`
+        };
     }
 
     /**
-     * 獲取股票價格（使用免費 API）
+     * 格式化數量顯示
      */
-    async fetchStockPrice(symbol) {
-        try {
-            // 使用 Alpha Vantage 免費 API (需要註冊)
-            // 或者使用 Yahoo Finance API 替代方案
-            const response = await fetch(
-                `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`
-            );
-
-            if (!response.ok) throw new Error('股票 API 響應失敗');
-
-            const data = await response.json();
-            const result = data.chart.result[0];
-            const price = result.meta.regularMarketPrice;
-            
-            return price || null;
-
-        } catch (error) {
-            console.error('獲取股票價格失敗：', error);
-            return null;
+    formatQuantity(quantity, category) {
+        switch (category) {
+            case 'crypto':
+                return `${quantity.toLocaleString()} 個`;
+            case 'taiwanStocks':
+                return `${quantity.toLocaleString()} 股`;
+            case 'cash':
+                return `$${quantity.toLocaleString()}`;
+            case 'forex':
+                return `${quantity.toLocaleString()} 單位`;
+            case 'liabilities':
+                return `負債金額`;
+            default:
+                return quantity.toLocaleString();
         }
     }
 
     /**
-     * 獲取外匯價格
-     */
-    async fetchForexPrice(symbol) {
-        try {
-            // 解析外匯對 (例: USD/TWD)
-            const [base, quote] = symbol.split('/');
-            if (!base || !quote) return null;
-
-            const response = await fetch(
-                `https://api.exchangerate-api.com/v4/latest/${base}`
-            );
-
-            if (!response.ok) throw new Error('外匯 API 響應失敗');
-
-            const data = await response.json();
-            return data.rates[quote] || null;
-
-        } catch (error) {
-            console.error('獲取外匯價格失敗：', error);
-            return null;
-        }
-    }
-
-    /**
-     * 更新所有資產價格
+     * 更新所有價格
      */
     async updateAllPrices() {
-        if (this.assets.length === 0) return;
-
         this.showLoading();
 
-        for (const asset of this.assets) {
-            try {
-                const currentPrice = await this.fetchCurrentPrice(asset.symbol, asset.type);
-                if (currentPrice !== null) {
-                    asset.currentPrice = currentPrice;
-                    asset.lastPriceUpdate = new Date().toISOString();
-                }
+        try {
+            // 更新加密貨幣價格
+            await this.updateCryptoPrices();
+            
+            // 更新台股價格
+            await this.updateTaiwanStockPrices();
+            
+            // 更新外匯價格
+            await this.updateForexPrices();
+
+            this.lastUpdate = new Date().toISOString();
+            this.saveHistoryData();
+            
+        } catch (error) {
+            console.error('更新價格失敗：', error);
+            this.showNotification('價格更新失敗，請稍後再試', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * 更新加密貨幣價格
+     */
+    async updateCryptoPrices() {
+        const cryptoAssets = this.config.assets.crypto || [];
+        if (cryptoAssets.length === 0) return;
+
+        try {
+            const symbols = cryptoAssets.map(asset => {
+                // 映射常見符號到 CoinGecko ID
+                const coinGeckoMap = {
+                    'BTC': 'bitcoin',
+                    'ETH': 'ethereum',
+                    'USDT': 'tether',
+                    'BNB': 'binancecoin',
+                    'ADA': 'cardano',
+                    'SOL': 'solana',
+                    'XRP': 'ripple',
+                    'DOT': 'polkadot',
+                    'DOGE': 'dogecoin',
+                    'AVAX': 'avalanche-2'
+                };
+                return coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
+            }).join(',');
+
+            const response = await fetch(
+                `https://api.coingecko.com/api/v3/simple/price?ids=${symbols}&vs_currencies=usd`
+            );
+
+            if (!response.ok) throw new Error('CoinGecko API 失敗');
+
+            const data = await response.json();
+            
+            cryptoAssets.forEach(asset => {
+                const coinGeckoMap = {
+                    'BTC': 'bitcoin',
+                    'ETH': 'ethereum',
+                    'USDT': 'tether',
+                    'BNB': 'binancecoin',
+                    'ADA': 'cardano',
+                    'SOL': 'solana',
+                    'XRP': 'ripple',
+                    'DOT': 'polkadot',
+                    'DOGE': 'dogecoin',
+                    'AVAX': 'avalanche-2'
+                };
                 
-                // 避免 API 限制，添加延遲
+                const coinId = coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
+                if (data[coinId]?.usd) {
+                    // 轉換為台幣
+                    this.currentPrices[asset.symbol] = data[coinId].usd * (this.exchangeRates.USD || 31.5);
+                }
+            });
+
+        } catch (error) {
+            console.error('更新加密貨幣價格失敗：', error);
+        }
+    }
+
+    /**
+     * 更新台股價格
+     */
+    async updateTaiwanStockPrices() {
+        const stockAssets = this.config.assets.taiwanStocks || [];
+        if (stockAssets.length === 0) return;
+
+        for (const asset of stockAssets) {
+            try {
+                // 使用 Yahoo Finance API
+                const response = await fetch(
+                    `https://query1.finance.yahoo.com/v8/finance/chart/${asset.symbol}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const result = data.chart.result[0];
+                    if (result?.meta?.regularMarketPrice) {
+                        this.currentPrices[asset.symbol] = result.meta.regularMarketPrice;
+                    }
+                }
+
+                // 添加延遲避免API限制
                 await new Promise(resolve => setTimeout(resolve, 200));
 
             } catch (error) {
                 console.error(`更新 ${asset.symbol} 價格失敗：`, error);
             }
         }
-
-        this.lastUpdate = new Date().toISOString();
-        this.saveData();
-        this.updateDisplay();
-        this.recordPriceHistory();
-        this.updateCharts();
-        this.hideLoading();
     }
 
     /**
-     * 記錄價格歷史
+     * 更新外匯價格
      */
-    recordPriceHistory() {
-        const timestamp = new Date().toISOString();
-        const totalValue = this.calculateTotalValue();
+    async updateForexPrices() {
+        try {
+            // 獲取美元對台幣匯率
+            const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+            if (response.ok) {
+                const data = await response.json();
+                this.exchangeRates.USD = data.rates.TWD || 31.5;
+                this.exchangeRates.JPY = data.rates.TWD / data.rates.JPY;
+                this.exchangeRates.EUR = data.rates.TWD / data.rates.EUR;
+            }
 
-        const historyEntry = {
-            timestamp,
-            totalValue,
-            assets: this.assets.map(asset => ({
-                symbol: asset.symbol,
-                type: asset.type,
-                price: asset.currentPrice || asset.purchasePrice,
-                quantity: asset.quantity,
-                value: (asset.currentPrice || asset.purchasePrice) * asset.quantity
-            }))
-        };
+            // 更新外匯資產價格
+            const forexAssets = this.config.assets.forex || [];
+            forexAssets.forEach(asset => {
+                if (this.exchangeRates[asset.symbol]) {
+                    this.currentPrices[asset.symbol] = this.exchangeRates[asset.symbol];
+                }
+            });
 
-        this.priceHistory.push(historyEntry);
-
-        // 保留最近 1000 筆記錄
-        if (this.priceHistory.length > 1000) {
-            this.priceHistory = this.priceHistory.slice(-1000);
+        } catch (error) {
+            console.error('更新外匯價格失敗：', error);
         }
-
-        this.saveData();
-    }
-
-    /**
-     * 計算總資產價值
-     */
-    calculateTotalValue() {
-        return this.assets.reduce((total, asset) => {
-            const currentPrice = asset.currentPrice || asset.purchasePrice;
-            return total + (currentPrice * asset.quantity);
-        }, 0);
-    }
-
-    /**
-     * 計算總資產變化
-     */
-    calculateTotalChange() {
-        let totalCost = 0;
-        let totalValue = 0;
-
-        this.assets.forEach(asset => {
-            totalCost += asset.purchasePrice * asset.quantity;
-            totalValue += (asset.currentPrice || asset.purchasePrice) * asset.quantity;
-        });
-
-        const change = totalValue - totalCost;
-        const changePercent = totalCost > 0 ? (change / totalCost) * 100 : 0;
-
-        return { change, changePercent };
     }
 
     /**
@@ -380,187 +393,184 @@ class PortfolioManager {
      */
     updateDisplay() {
         this.updateSummaryCards();
-        this.updateAssetList();
+        this.updateCategoryCards();
+        this.updateDividendSection();
     }
 
     /**
      * 更新摘要卡片
      */
     updateSummaryCards() {
-        const totalValue = this.calculateTotalValue();
-        const { change, changePercent } = this.calculateTotalChange();
-        const assetTypes = new Set(this.assets.map(asset => asset.type)).size;
-
+        const totals = this.calculateTotals();
+        
         // 總資產價值
         document.getElementById('totalValue').textContent = 
-            `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            `$${this.formatNumber(totals.totalAssets)}`;
 
-        // 變化指標
-        const changeIndicator = document.getElementById('totalChange');
-        const changeSign = changePercent >= 0 ? '+' : '';
-        changeIndicator.textContent = `${changeSign}${changePercent.toFixed(2)}%`;
-        
-        changeIndicator.className = 'change-indicator ' + 
-            (changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral');
+        // 總變化
+        const totalChange = ((totals.totalAssets - totals.totalCost) / totals.totalCost) * 100;
+        const changeElement = document.getElementById('totalChange');
+        const changeSign = totalChange >= 0 ? '+' : '';
+        changeElement.textContent = `${changeSign}${totalChange.toFixed(2)}%`;
+        changeElement.className = 'change-indicator ' + 
+            (totalChange > 0 ? 'positive' : totalChange < 0 ? 'negative' : 'neutral');
 
-        // 資產項目數量
-        document.getElementById('assetCount').textContent = this.assets.length;
-        document.getElementById('assetTypes').textContent = `${assetTypes} 種類型`;
+        // 資產數量
+        const totalAssetCount = Object.values(this.config.assets)
+            .reduce((sum, category) => sum + (Array.isArray(category) ? category.length : 0), 0);
+        document.getElementById('assetCount').textContent = totalAssetCount;
+        document.getElementById('assetTypes').textContent = `5 種類型`;
 
         // 最後更新時間
-        const lastUpdateEl = document.getElementById('lastUpdate');
         if (this.lastUpdate) {
             const updateTime = new Date(this.lastUpdate);
-            lastUpdateEl.textContent = updateTime.toLocaleString('zh-TW');
+            document.getElementById('lastUpdate').textContent = updateTime.toLocaleString('zh-TW');
         }
     }
 
     /**
-     * 更新資產列表
+     * 更新類別卡片
      */
-    updateAssetList() {
-        const assetList = document.getElementById('assetList');
-        const emptyState = document.getElementById('emptyState');
+    updateCategoryCards() {
+        const totals = this.calculateTotals();
 
-        if (this.assets.length === 0) {
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        emptyState.style.display = 'none';
-
-        const assetsHTML = this.assets.map(asset => {
-            const currentPrice = asset.currentPrice || asset.purchasePrice;
-            const totalValue = currentPrice * asset.quantity;
-            const change = ((currentPrice - asset.purchasePrice) / asset.purchasePrice) * 100;
-            const changeClass = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-
-            return `
-                <div class="asset-item">
-                    <div class="asset-icon ${asset.type}">
-                        ${this.getAssetTypeIcon(asset.type)}
-                    </div>
-                    <div class="asset-info">
-                        <h4>${asset.name}</h4>
-                        <p>${asset.symbol} • ${this.getAssetTypeName(asset.type)}</p>
-                    </div>
-                    <div class="asset-quantity">
-                        <span class="label">數量</span>
-                        <span class="value">${asset.quantity.toLocaleString()}</span>
-                    </div>
-                    <div class="asset-price">
-                        <span class="label">現價</span>
-                        <span class="value">$${currentPrice.toFixed(2)}</span>
-                    </div>
-                    <div class="asset-value">
-                        <span class="label">總值</span>
-                        <span class="value">$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                        <span class="change-indicator ${changeClass}">
-                            ${change >= 0 ? '+' : ''}${change.toFixed(2)}%
-                        </span>
-                    </div>
-                    <div class="asset-actions">
-                        <button class="btn-icon btn-edit" onclick="portfolioManager.editAsset('${asset.id}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-icon btn-delete" onclick="portfolioManager.deleteAsset('${asset.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        assetList.innerHTML = assetsHTML;
+        // 更新各類別
+        this.updateCategoryCard('crypto', totals.crypto, totals.totalAssets);
+        this.updateCategoryCard('taiwanStocks', totals.taiwanStocks, totals.totalAssets);
+        this.updateCategoryCard('cash', totals.cash, totals.totalAssets);
+        this.updateCategoryCard('forex', totals.forex, totals.totalAssets);
+        this.updateCategoryCard('liabilities', totals.liabilities, totals.totalAssets, true);
     }
 
     /**
-     * 獲取資產類型圖標
+     * 更新單個類別卡片
      */
-    getAssetTypeIcon(type) {
-        const icons = {
-            stock: '📈',
-            crypto: '₿',
-            forex: '💱',
-            commodity: '🥇',
-            bond: '📜',
-            'real-estate': '🏠',
-            other: '💼'
+    updateCategoryCard(category, totals, totalAssets, isLiability = false) {
+        const card = document.querySelector(`[data-category="${category}"]`);
+        if (!card) return;
+
+        const valueElement = card.querySelector('.category-value');
+        const changeElement = card.querySelector('.category-change, .category-interest');
+        const weightElement = card.querySelector('.category-weight');
+
+        // 更新價值
+        const prefix = isLiability ? '-$' : '$';
+        valueElement.textContent = `${prefix}${this.formatNumber(totals.value)}`;
+
+        // 更新變化或利率
+        if (isLiability) {
+            const avgRate = totals.avgRate || 0;
+            changeElement.textContent = `利率: ${avgRate.toFixed(2)}%`;
+        } else {
+            const changePercent = totals.changePercent || 0;
+            const changeClass = changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral';
+            const changeSign = changePercent >= 0 ? '+' : '';
+            changeElement.textContent = `${changeSign}${changePercent.toFixed(2)}%`;
+            changeElement.className = `category-change ${changeClass}`;
+        }
+
+        // 更新權重
+        const weight = totalAssets > 0 ? (totals.value / totalAssets) * 100 : 0;
+        weightElement.textContent = `${weight.toFixed(1)}%`;
+    }
+
+    /**
+     * 計算各類別總計
+     */
+    calculateTotals() {
+        const result = {
+            totalAssets: 0,
+            totalCost: 0,
+            crypto: { value: 0, cost: 0, changePercent: 0 },
+            taiwanStocks: { value: 0, cost: 0, changePercent: 0 },
+            cash: { value: 0, cost: 0, changePercent: 0 },
+            forex: { value: 0, cost: 0, changePercent: 0 },
+            liabilities: { value: 0, avgRate: 0 }
         };
-        return icons[type] || '💼';
-    }
 
-    /**
-     * 獲取資產類型名稱
-     */
-    getAssetTypeName(type) {
-        const names = {
-            stock: '股票',
-            crypto: '加密貨幣',
-            forex: '外匯',
-            commodity: '商品',
-            bond: '債券',
-            'real-estate': '房地產',
-            other: '其他'
-        };
-        return names[type] || '其他';
-    }
-
-    /**
-     * 刪除資產
-     */
-    deleteAsset(assetId) {
-        if (confirm('確定要刪除此資產嗎？')) {
-            this.assets = this.assets.filter(asset => asset.id !== assetId);
-            this.saveData();
-            this.updateDisplay();
-            this.updateCharts();
-            this.showNotification('資產已刪除', 'success');
-        }
-    }
-
-    /**
-     * 編輯資產
-     */
-    editAsset(assetId) {
-        const asset = this.assets.find(a => a.id === assetId);
-        if (!asset) return;
-
-        // 填充表單
-        document.getElementById('assetType').value = asset.type;
-        document.getElementById('assetSymbol').value = asset.symbol;
-        document.getElementById('assetName').value = asset.name;
-        document.getElementById('quantity').value = asset.quantity;
-        document.getElementById('purchasePrice').value = asset.purchasePrice;
-        document.getElementById('purchaseDate').value = asset.purchaseDate;
-        document.getElementById('notes').value = asset.notes || '';
-
-        this.openAddAssetModal();
-
-        // 修改表單提交處理
-        const form = document.getElementById('assetForm');
-        const submitHandler = async (e) => {
-            e.preventDefault();
+        // 計算各類別
+        Object.keys(this.config.assets).forEach(category => {
+            const assets = this.config.assets[category] || [];
             
-            asset.type = document.getElementById('assetType').value;
-            asset.symbol = document.getElementById('assetSymbol').value;
-            asset.name = document.getElementById('assetName').value;
-            asset.quantity = parseFloat(document.getElementById('quantity').value);
-            asset.purchasePrice = parseFloat(document.getElementById('purchasePrice').value);
-            asset.purchaseDate = document.getElementById('purchaseDate').value;
-            asset.notes = document.getElementById('notes').value;
+            assets.forEach(asset => {
+                const currentValue = this.calculateAssetValue(asset, category);
+                const cost = category === 'liabilities' ? 0 : asset.averageCost * asset.quantity;
 
-            this.saveData();
-            this.updateDisplay();
-            this.updateCharts();
-            this.closeAddAssetModal();
-            this.showNotification('資產已更新', 'success');
+                if (category === 'liabilities') {
+                    result.liabilities.value += currentValue;
+                    if (asset.interestRate) {
+                        result.liabilities.avgRate += asset.interestRate * (currentValue / result.liabilities.value || 0);
+                    }
+                } else {
+                    result[category].value += currentValue;
+                    result[category].cost += cost;
+                    result.totalAssets += currentValue;
+                    result.totalCost += cost;
+                }
+            });
 
-            form.removeEventListener('submit', submitHandler);
-        };
+            // 計算變化百分比
+            if (category !== 'liabilities' && result[category].cost > 0) {
+                result[category].changePercent = 
+                    ((result[category].value - result[category].cost) / result[category].cost) * 100;
+            }
+        });
 
-        form.removeEventListener('submit', this.handleAssetFormSubmit);
-        form.addEventListener('submit', submitHandler);
+        return result;
+    }
+
+    /**
+     * 更新股息收益區塊
+     */
+    updateDividendSection() {
+        const dividendIncome = this.calculateAnnualDividend();
+        const interestExpense = this.calculateAnnualInterest();
+        const netIncome = dividendIncome - interestExpense;
+
+        document.getElementById('dividendIncome').textContent = 
+            `$${this.formatNumber(dividendIncome)} / 年`;
+        
+        document.getElementById('interestExpense').textContent = 
+            `-$${this.formatNumber(interestExpense)} / 年`;
+        
+        const netElement = document.getElementById('netIncome');
+        netElement.textContent = `$${this.formatNumber(netIncome)} / 年`;
+        netElement.className = `income-value ${netIncome >= 0 ? '' : 'negative'}`;
+    }
+
+    /**
+     * 計算年度股息收入
+     */
+    calculateAnnualDividend() {
+        let totalDividend = 0;
+
+        ['crypto', 'taiwanStocks', 'cash', 'forex'].forEach(category => {
+            const assets = this.config.assets[category] || [];
+            assets.forEach(asset => {
+                if (asset.dividendRate && asset.dividendRate > 0) {
+                    const currentValue = this.calculateAssetValue(asset, category);
+                    totalDividend += currentValue * (asset.dividendRate / 100);
+                }
+            });
+        });
+
+        return totalDividend;
+    }
+
+    /**
+     * 計算年度利息支出
+     */
+    calculateAnnualInterest() {
+        let totalInterest = 0;
+
+        const liabilities = this.config.assets.liabilities || [];
+        liabilities.forEach(liability => {
+            if (liability.interestRate && liability.interestRate > 0) {
+                totalInterest += liability.amount * (liability.interestRate / 100);
+            }
+        });
+
+        return totalInterest;
     }
 
     /**
@@ -578,14 +588,13 @@ class PortfolioManager {
         const ctx = document.getElementById('allocationChart').getContext('2d');
         
         this.charts.allocation = new Chart(ctx, {
-            type: 'pie',
+            type: 'doughnut',
             data: {
-                labels: [],
+                labels: ['加密貨幣', '台股', '台幣現金', '外匯'],
                 datasets: [{
-                    data: [],
+                    data: [0, 0, 0, 0],
                     backgroundColor: [
-                        '#64ffda', '#00bcd4', '#2196f3', '#ff9800',
-                        '#4caf50', '#9c27b0', '#f44336', '#795548'
+                        '#ff9800', '#2196f3', '#4caf50', '#9c27b0'
                     ],
                     borderWidth: 2,
                     borderColor: '#1a1a1a'
@@ -638,9 +647,7 @@ class PortfolioManager {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        labels: {
-                            color: '#ffffff'
-                        }
+                        labels: { color: '#ffffff' }
                     }
                 },
                 scales: {
@@ -665,26 +672,20 @@ class PortfolioManager {
     }
 
     /**
-     * 更新圖表
-     */
-    updateCharts() {
-        this.updateAllocationChart();
-        this.updatePerformanceChart();
-    }
-
-    /**
      * 更新資產配置圖表
      */
     updateAllocationChart() {
         if (!this.charts.allocation) return;
 
-        const assetValues = this.assets.map(asset => ({
-            name: asset.name,
-            value: (asset.currentPrice || asset.purchasePrice) * asset.quantity
-        }));
+        const totals = this.calculateTotals();
+        const values = [
+            totals.crypto.value,
+            totals.taiwanStocks.value,
+            totals.cash.value,
+            totals.forex.value
+        ];
 
-        this.charts.allocation.data.labels = assetValues.map(a => a.name);
-        this.charts.allocation.data.datasets[0].data = assetValues.map(a => a.value);
+        this.charts.allocation.data.datasets[0].data = values;
         this.charts.allocation.update();
     }
 
@@ -710,49 +711,33 @@ class PortfolioManager {
     }
 
     /**
-     * 獲取當前時間週期
+     * 記錄價格快照
      */
-    getCurrentTimePeriod() {
-        const activeButton = document.querySelector('.time-toggle.active');
-        return activeButton ? activeButton.dataset.period : '7d';
-    }
+    recordSnapshot() {
+        const timestamp = new Date().toISOString();
+        const totals = this.calculateTotals();
 
-    /**
-     * 根據時間週期過濾歷史數據
-     */
-    filterHistoryByPeriod(history, period) {
-        const now = new Date();
-        const periodMap = {
-            '7d': 7 * 24 * 60 * 60 * 1000,
-            '30d': 30 * 24 * 60 * 60 * 1000,
-            '90d': 90 * 24 * 60 * 60 * 1000,
-            '1y': 365 * 24 * 60 * 60 * 1000
+        const snapshot = {
+            timestamp,
+            totalValue: totals.totalAssets,
+            categories: {
+                crypto: totals.crypto.value,
+                taiwanStocks: totals.taiwanStocks.value,
+                cash: totals.cash.value,
+                forex: totals.forex.value
+            },
+            dividendIncome: this.calculateAnnualDividend(),
+            interestExpense: this.calculateAnnualInterest()
         };
 
-        const cutoffTime = now.getTime() - periodMap[period];
-        return history.filter(entry => 
-            new Date(entry.timestamp).getTime() >= cutoffTime
-        );
-    }
+        this.priceHistory.push(snapshot);
 
-    /**
-     * 處理圖表切換
-     */
-    handleChartToggle(e) {
-        const button = e.target;
-        const chartType = button.dataset.chart;
-
-        // 更新按鈕狀態
-        button.parentElement.querySelectorAll('.chart-toggle').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        button.classList.add('active');
-
-        // 更新圖表類型
-        if (this.charts.allocation) {
-            this.charts.allocation.config.type = chartType;
-            this.charts.allocation.update();
+        // 保留最近 365 筆記錄
+        if (this.priceHistory.length > 365) {
+            this.priceHistory = this.priceHistory.slice(-365);
         }
+
+        this.saveHistoryData();
     }
 
     /**
@@ -772,44 +757,169 @@ class PortfolioManager {
     }
 
     /**
+     * 獲取當前時間週期
+     */
+    getCurrentTimePeriod() {
+        const activeButton = document.querySelector('.time-toggle.active');
+        return activeButton ? activeButton.dataset.period : '30d';
+    }
+
+    /**
+     * 根據時間週期過濾歷史數據
+     */
+    filterHistoryByPeriod(history, period) {
+        const now = new Date();
+        const periodMap = {
+            '7d': 7,
+            '30d': 30,
+            '90d': 90,
+            '1y': 365
+        };
+
+        const daysBack = periodMap[period] || 30;
+        const cutoffTime = now.getTime() - (daysBack * 24 * 60 * 60 * 1000);
+        
+        return history.filter(entry => 
+            new Date(entry.timestamp).getTime() >= cutoffTime
+        );
+    }
+
+    /**
      * 開始自動更新
      */
     startAutoUpdate() {
-        // 每 5 分鐘自動更新一次價格
+        // 每 10 分鐘自動更新一次價格
         this.updateInterval = setInterval(() => {
-            this.updateAllPrices();
-        }, 5 * 60 * 1000);
+            this.refreshData();
+        }, 10 * 60 * 1000);
     }
 
     /**
-     * 停止自動更新
+     * 刷新數據
      */
-    stopAutoUpdate() {
-        if (this.updateInterval) {
-            clearInterval(this.updateInterval);
-            this.updateInterval = null;
-        }
+    async refreshData() {
+        await this.updateAllPrices();
+        this.updateDisplay();
+        this.updateCharts();
+        this.recordSnapshot();
+        this.showNotification('數據已更新', 'success');
     }
 
     /**
-     * 顯示載入動畫
+     * 顯示/隐藏配置模態框
      */
+    showConfigModal() {
+        document.getElementById('configInfoModal').classList.add('show');
+    }
+
+    closeConfigModal() {
+        document.getElementById('configInfoModal').classList.remove('show');
+    }
+
+    /**
+     * 下載配置範本
+     */
+    downloadConfigTemplate() {
+        const template = this.getDefaultConfig();
+        template.assets = {
+            crypto: [{
+                id: "btc_example",
+                symbol: "BTC",
+                name: "比特幣",
+                quantity: 0.1,
+                averageCost: 1200000,
+                purchaseDate: "2023-06-15",
+                dividendRate: 0,
+                notes: "範例資產",
+                platform: "交易所名稱"
+            }],
+            taiwanStocks: [{
+                id: "tsmc_example",
+                symbol: "2330.TW",
+                name: "台積電",
+                quantity: 10,
+                averageCost: 480,
+                purchaseDate: "2023-05-10",
+                dividendRate: 2.8,
+                notes: "範例股票",
+                broker: "證券商名稱"
+            }],
+            cash: [{
+                id: "twd_savings",
+                symbol: "TWD",
+                name: "台幣定存",
+                quantity: 100000,
+                averageCost: 1,
+                purchaseDate: "2023-01-01",
+                dividendRate: 1.5,
+                notes: "定期存款",
+                bank: "銀行名稱"
+            }],
+            forex: [{
+                id: "usd_example",
+                symbol: "USD",
+                name: "美元",
+                quantity: 1000,
+                averageCost: 31.2,
+                purchaseDate: "2023-04-15",
+                dividendRate: 0,
+                notes: "美元投資",
+                platform: "銀行名稱"
+            }],
+            liabilities: [{
+                id: "house_loan",
+                symbol: "HOUSE_MORTGAGE",
+                name: "房屋貸款",
+                quantity: 1,
+                amount: 5000000,
+                interestRate: 2.1,
+                startDate: "2022-03-01",
+                termYears: 30,
+                notes: "自住房屋貸款",
+                bank: "銀行名稱"
+            }]
+        };
+
+        const blob = new Blob([JSON.stringify(template, null, 2)], {
+            type: 'application/json'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'portfolio-config-template.json';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        this.showNotification('配置範本已下載', 'success');
+    }
+
+    /**
+     * 顯示配置指南
+     */
+    showConfigGuide() {
+        window.open('https://github.com/eric0000567/juiyuan.liu/blob/main/CONFIG_GUIDE.md', '_blank');
+    }
+
+    /**
+     * 工具函數
+     */
+    formatNumber(value) {
+        return value.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+    }
+
     showLoading() {
         document.getElementById('loadingOverlay').classList.add('show');
     }
 
-    /**
-     * 隱藏載入動畫
-     */
     hideLoading() {
         document.getElementById('loadingOverlay').classList.remove('show');
     }
 
-    /**
-     * 顯示通知
-     */
     showNotification(message, type = 'info') {
-        // 創建通知元素
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.innerHTML = `
@@ -817,7 +927,6 @@ class PortfolioManager {
             <span>${message}</span>
         `;
 
-        // 添加樣式
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -835,7 +944,6 @@ class PortfolioManager {
 
         document.body.appendChild(notification);
 
-        // 3 秒後自動移除
         setTimeout(() => {
             notification.style.animation = 'slideOutRight 0.3s ease';
             setTimeout(() => {
@@ -846,9 +954,6 @@ class PortfolioManager {
         }, 3000);
     }
 
-    /**
-     * 獲取通知圖標
-     */
     getNotificationIcon(type) {
         const icons = {
             success: 'fa-check-circle',
@@ -859,9 +964,6 @@ class PortfolioManager {
         return icons[type] || icons.info;
     }
 
-    /**
-     * 獲取通知顏色
-     */
     getNotificationColor(type) {
         const colors = {
             success: '#4caf50',
@@ -873,137 +975,66 @@ class PortfolioManager {
     }
 
     /**
-     * 儲存數據到 localStorage
+     * 數據持久化
      */
-    saveData() {
-        const data = {
-            assets: this.assets,
-            priceHistory: this.priceHistory,
-            lastUpdate: this.lastUpdate,
-            version: '1.0.0'
-        };
-
+    saveHistoryData() {
         try {
-            localStorage.setItem('portfolioData', JSON.stringify(data));
+            const data = {
+                priceHistory: this.priceHistory,
+                lastUpdate: this.lastUpdate,
+                version: '2.0.0'
+            };
+            localStorage.setItem('portfolioHistoryData', JSON.stringify(data));
         } catch (error) {
-            console.error('儲存數據失敗：', error);
-            this.showNotification('資料儲存失敗', 'error');
+            console.error('儲存歷史數據失敗：', error);
         }
     }
 
-    /**
-     * 從 localStorage 載入數據
-     */
-    loadData() {
+    loadHistoryData() {
         try {
-            const data = localStorage.getItem('portfolioData');
+            const data = localStorage.getItem('portfolioHistoryData');
             if (data) {
                 const parsed = JSON.parse(data);
-                this.assets = parsed.assets || [];
                 this.priceHistory = parsed.priceHistory || [];
                 this.lastUpdate = parsed.lastUpdate;
             }
         } catch (error) {
-            console.error('載入數據失敗：', error);
-            this.showNotification('資料載入失敗', 'error');
+            console.error('載入歷史數據失敗：', error);
+            this.priceHistory = [];
         }
-    }
-
-    /**
-     * 匯出數據
-     */
-    exportData() {
-        const data = {
-            assets: this.assets,
-            priceHistory: this.priceHistory,
-            exportDate: new Date().toISOString()
-        };
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-            type: 'application/json'
-        });
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `portfolio-backup-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        this.showNotification('資料匯出成功', 'success');
-    }
-
-    /**
-     * 匯入數據
-     */
-    importData(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                
-                if (data.assets && Array.isArray(data.assets)) {
-                    this.assets = data.assets;
-                }
-                
-                if (data.priceHistory && Array.isArray(data.priceHistory)) {
-                    this.priceHistory = data.priceHistory;
-                }
-
-                this.saveData();
-                this.updateDisplay();
-                this.updateCharts();
-                this.showNotification('資料匯入成功', 'success');
-
-            } catch (error) {
-                console.error('匯入數據失敗：', error);
-                this.showNotification('資料匯入失敗', 'error');
-            }
-        };
-
-        reader.readAsText(file);
     }
 }
 
-// 初始化資產組合管理器
+// 初始化系統
 let portfolioManager;
 
 document.addEventListener('DOMContentLoaded', () => {
-    portfolioManager = new PortfolioManager();
+    portfolioManager = new LocalPortfolioManager();
     
-    // 添加一些動畫樣式
+    // 添加動畫樣式
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
-        
         @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
         }
     `;
     document.head.appendChild(style);
 });
 
-// 全域函數（供 HTML 調用）
-function openAddAssetModal() {
-    portfolioManager.openAddAssetModal();
+// 全域函數
+function closeConfigModal() {
+    portfolioManager.closeConfigModal();
 }
 
-function closeAddAssetModal() {
-    portfolioManager.closeAddAssetModal();
+function downloadConfigTemplate() {
+    portfolioManager.downloadConfigTemplate();
+}
+
+function showConfigGuide() {
+    portfolioManager.showConfigGuide();
 } 

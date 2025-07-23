@@ -88,24 +88,112 @@
         </div>
     </section>
 
-    <!-- Portfolio Management -->
-    <section class="portfolio-management">
+    <!-- Portfolio Overview -->
+    <section class="portfolio-overview">
         <div class="container">
-            <div class="management-header">
-                <h2>資產管理</h2>
-                <button class="btn-primary" id="addAssetBtn">
-                    <i class="fas fa-plus"></i>
-                    新增資產
-                </button>
+            <div class="overview-header">
+                <h2>投資組合總覽</h2>
+                <div class="update-info">
+                    <span class="config-info">
+                        <i class="fas fa-cog"></i>
+                        配置模式：本地管理
+                    </span>
+                </div>
             </div>
 
-            <!-- Asset List -->
-            <div class="asset-list" id="assetList">
-                <div class="empty-state" id="emptyState">
-                    <i class="fas fa-chart-pie"></i>
-                    <h3>開始建立您的投資組合</h3>
-                    <p>新增您的第一個資產項目來開始追蹤</p>
-                    <button class="btn-secondary" onclick="openAddAssetModal()">新增資產</button>
+            <!-- Asset Categories -->
+            <div class="asset-categories" id="assetCategories">
+                <div class="category-card" data-category="crypto">
+                    <div class="category-header">
+                        <div class="category-icon crypto">₿</div>
+                        <div class="category-info">
+                            <h3>加密貨幣</h3>
+                            <p class="category-value">$0</p>
+                            <span class="category-change">+0.00%</span>
+                        </div>
+                        <div class="category-weight">0%</div>
+                    </div>
+                    <div class="category-details" id="cryptoDetails"></div>
+                </div>
+
+                <div class="category-card" data-category="taiwanStocks">
+                    <div class="category-header">
+                        <div class="category-icon stocks">📈</div>
+                        <div class="category-info">
+                            <h3>台股</h3>
+                            <p class="category-value">$0</p>
+                            <span class="category-change">+0.00%</span>
+                        </div>
+                        <div class="category-weight">0%</div>
+                    </div>
+                    <div class="category-details" id="taiwanStocksDetails"></div>
+                </div>
+
+                <div class="category-card" data-category="cash">
+                    <div class="category-header">
+                        <div class="category-icon cash">💰</div>
+                        <div class="category-info">
+                            <h3>台幣現金</h3>
+                            <p class="category-value">$0</p>
+                            <span class="category-change">+0.00%</span>
+                        </div>
+                        <div class="category-weight">0%</div>
+                    </div>
+                    <div class="category-details" id="cashDetails"></div>
+                </div>
+
+                <div class="category-card" data-category="forex">
+                    <div class="category-header">
+                        <div class="category-icon forex">💱</div>
+                        <div class="category-info">
+                            <h3>外匯</h3>
+                            <p class="category-value">$0</p>
+                            <span class="category-change">+0.00%</span>
+                        </div>
+                        <div class="category-weight">0%</div>
+                    </div>
+                    <div class="category-details" id="forexDetails"></div>
+                </div>
+
+                <div class="category-card liability" data-category="liabilities">
+                    <div class="category-header">
+                        <div class="category-icon liability">📊</div>
+                        <div class="category-info">
+                            <h3>負債</h3>
+                            <p class="category-value">-$0</p>
+                            <span class="category-interest">利率: 0%</span>
+                        </div>
+                        <div class="category-weight">0%</div>
+                    </div>
+                    <div class="category-details" id="liabilitiesDetails"></div>
+                </div>
+            </div>
+
+            <!-- Dividend Income Section -->
+            <div class="dividend-section">
+                <h3>年化收益概況</h3>
+                <div class="income-grid">
+                    <div class="income-card">
+                        <div class="income-icon">💰</div>
+                        <div class="income-info">
+                            <h4>股息收入</h4>
+                            <p class="income-value" id="dividendIncome">$0 / 年</p>
+                        </div>
+                    </div>
+                    <div class="income-card">
+                        <div class="income-icon">💳</div>
+                        <div class="income-info">
+                            <h4>利息支出</h4>
+                            <p class="income-value negative" id="interestExpense">-$0 / 年</p>
+                        </div>
+                    </div>
+                    <div class="income-card">
+                        <div class="income-icon">📊</div>
+                        <div class="income-info">
+                            <h4>淨收益</h4>
+                            <p class="income-value" id="netIncome">$0 / 年</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -148,69 +236,51 @@
         </div>
     </section>
 
-    <!-- Add Asset Modal -->
-    <div class="modal" id="addAssetModal">
+    <!-- Configuration Info Modal -->
+    <div class="modal" id="configInfoModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>新增資產</h3>
-                <button class="modal-close" onclick="closeAddAssetModal()">
+                <h3>配置說明</h3>
+                <button class="modal-close" onclick="closeConfigModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form class="asset-form" id="assetForm">
-                <div class="form-group">
-                    <label for="assetType">資產類型</label>
-                    <select id="assetType" required>
-                        <option value="">請選擇資產類型</option>
-                        <option value="stock">股票</option>
-                        <option value="crypto">加密貨幣</option>
-                        <option value="forex">外匯</option>
-                        <option value="commodity">商品</option>
-                        <option value="bond">債券</option>
-                        <option value="real-estate">房地產</option>
-                        <option value="other">其他</option>
-                    </select>
+            <div class="config-info-content">
+                <p>此投資組合系統採用本地配置管理模式，確保您的資產資訊安全私密。</p>
+                
+                <div class="config-steps">
+                    <h4>設定步驟：</h4>
+                    <ol>
+                        <li>編輯 <code>portfolio-config.json</code> 檔案</li>
+                        <li>設定您的投資項目和數量</li>
+                        <li>設定配息利率和負債利率</li>
+                        <li>重新載入頁面查看更新</li>
+                    </ol>
                 </div>
 
-                <div class="form-group">
-                    <label for="assetSymbol">代碼/符號</label>
-                    <input type="text" id="assetSymbol" placeholder="例：AAPL, BTC, USD/TWD" required>
-                    <small>股票代碼、加密貨幣符號或其他識別碼</small>
+                <div class="config-features">
+                    <h4>功能特色：</h4>
+                    <ul>
+                        <li>✅ 本地配置，資料安全</li>
+                        <li>✅ 實時價格更新</li>
+                        <li>✅ 配息收入計算</li>
+                        <li>✅ 負債利息追蹤</li>
+                        <li>✅ 歷史數據記錄</li>
+                    </ul>
                 </div>
 
-                <div class="form-group">
-                    <label for="assetName">資產名稱</label>
-                    <input type="text" id="assetName" placeholder="例：蘋果公司" required>
+                <div class="config-actions">
+                    <button class="btn-primary" onclick="downloadConfigTemplate()">
+                        <i class="fas fa-download"></i>
+                        下載配置範本
+                    </button>
+                    <button class="btn-secondary" onclick="showConfigGuide()">
+                        <i class="fas fa-book"></i>
+                        查看詳細說明
+                    </button>
                 </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="quantity">數量</label>
-                        <input type="number" id="quantity" step="0.000001" min="0" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="purchasePrice">購入價格</label>
-                        <input type="number" id="purchasePrice" step="0.01" min="0" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="purchaseDate">購入日期</label>
-                    <input type="date" id="purchaseDate" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="notes">備註</label>
-                    <textarea id="notes" placeholder="投資理由、策略或其他備註"></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="closeAddAssetModal()">取消</button>
-                    <button type="submit" class="btn-primary">新增資產</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 

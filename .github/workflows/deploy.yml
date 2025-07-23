@@ -75,6 +75,8 @@ jobs:
         # Copy other assets and configuration files
         cp manifest.json dist/ 2>/dev/null || true
         cp robots.txt dist/ 2>/dev/null || true
+        cp portfolio-config.json dist/ 2>/dev/null || true
+        cp CONFIG_GUIDE.md dist/ 2>/dev/null || true
         cp -r assets dist/ 2>/dev/null || true
         cp *.png dist/ 2>/dev/null || true
         cp *.jpg dist/ 2>/dev/null || true

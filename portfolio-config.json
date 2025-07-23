@@ -1,0 +1,185 @@
+{
+  "portfolioInfo": {
+    "name": "劉瑞源個人投資組合",
+    "lastUpdate": "2024-01-01T00:00:00.000Z",
+    "baseCurrency": "TWD",
+    "description": "個人資產配置與投資組合管理"
+  },
+  "assets": {
+    "crypto": [
+      {
+        "id": "btc_holding",
+        "symbol": "BTC",
+        "name": "比特幣",
+        "quantity": 0.5,
+        "averageCost": 1200000,
+        "purchaseDate": "2023-06-15",
+        "dividendRate": 0,
+        "notes": "長期持有策略",
+        "platform": "幣安"
+      },
+      {
+        "id": "eth_holding", 
+        "symbol": "ETH",
+        "name": "以太幣",
+        "quantity": 5.0,
+        "averageCost": 45000,
+        "purchaseDate": "2023-08-20",
+        "dividendRate": 0,
+        "notes": "DeFi 生態系統投資",
+        "platform": "幣安"
+      }
+    ],
+    "taiwanStocks": [
+      {
+        "id": "tsmc_holding",
+        "symbol": "2330.TW",
+        "name": "台積電",
+        "quantity": 100,
+        "averageCost": 480,
+        "purchaseDate": "2023-05-10",
+        "dividendRate": 2.8,
+        "notes": "半導體龍頭股",
+        "broker": "富邦證券"
+      },
+      {
+        "id": "cathay_holding",
+        "symbol": "2882.TW", 
+        "name": "國泰金",
+        "quantity": 50,
+        "averageCost": 42.5,
+        "purchaseDate": "2023-07-01",
+        "dividendRate": 5.2,
+        "notes": "金融股息收入",
+        "broker": "富邦證券"
+      }
+    ],
+    "cash": [
+      {
+        "id": "twd_savings",
+        "symbol": "TWD",
+        "name": "台幣定存",
+        "quantity": 500000,
+        "averageCost": 1,
+        "purchaseDate": "2023-01-01",
+        "dividendRate": 1.5,
+        "notes": "緊急預備金",
+        "bank": "國泰世華銀行"
+      },
+      {
+        "id": "twd_current",
+        "symbol": "TWD_CURRENT",
+        "name": "台幣活存",
+        "quantity": 150000,
+        "averageCost": 1,
+        "purchaseDate": "2023-01-01", 
+        "dividendRate": 0.1,
+        "notes": "日常開支資金",
+        "bank": "國泰世華銀行"
+      }
+    ],
+    "forex": [
+      {
+        "id": "usd_holding",
+        "symbol": "USD",
+        "name": "美元外匯",
+        "quantity": 5000,
+        "averageCost": 31.2,
+        "purchaseDate": "2023-04-15",
+        "dividendRate": 0,
+        "notes": "美元投資避險",
+        "platform": "台灣銀行"
+      },
+      {
+        "id": "jpy_holding",
+        "symbol": "JPY", 
+        "name": "日圓外匯",
+        "quantity": 200000,
+        "averageCost": 0.22,
+        "purchaseDate": "2023-09-10",
+        "dividendRate": 0,
+        "notes": "日本旅遊基金",
+        "platform": "台灣銀行"
+      }
+    ],
+    "liabilities": [
+      {
+        "id": "house_loan",
+        "symbol": "HOUSE_MORTGAGE",
+        "name": "房屋貸款",
+        "quantity": 1,
+        "amount": 8000000,
+        "interestRate": 2.1,
+        "startDate": "2022-03-01",
+        "termYears": 30,
+        "notes": "自住房屋貸款",
+        "bank": "國泰世華銀行"
+      },
+      {
+        "id": "credit_card",
+        "symbol": "CREDIT_DEBT",
+        "name": "信用卡債務",
+        "quantity": 1,
+        "amount": 0,
+        "interestRate": 15.0,
+        "startDate": "2023-01-01",
+        "termYears": 0,
+        "notes": "信用卡循環利息",
+        "bank": "國泰世華銀行"
+      }
+    ]
+  },
+  "priceApis": {
+    "crypto": {
+      "provider": "coingecko",
+      "baseUrl": "https://api.coingecko.com/api/v3",
+      "updateInterval": 300000,
+      "rateLimit": 50
+    },
+    "taiwanStocks": {
+      "provider": "yahoo",
+      "baseUrl": "https://query1.finance.yahoo.com/v8/finance/chart",
+      "updateInterval": 300000,
+      "rateLimit": 100
+    },
+    "forex": {
+      "provider": "exchangerate",
+      "baseUrl": "https://api.exchangerate-api.com/v4/latest",
+      "updateInterval": 3600000,
+      "rateLimit": 1500
+    }
+  },
+  "displaySettings": {
+    "showPublic": {
+      "totalValue": true,
+      "assetAllocation": true,
+      "historicalChart": true,
+      "dividendIncome": true,
+      "individualAssets": false,
+      "exactQuantities": false,
+      "purchasePrices": false
+    },
+    "chartSettings": {
+      "defaultTimePeriod": "30d",
+      "chartType": "line",
+      "showMovingAverage": true,
+      "showVolume": false
+    },
+    "privacy": {
+      "maskSensitiveData": true,
+      "showPercentageOnly": true,
+      "roundToNearestThousand": true
+    }
+  },
+  "targets": {
+    "assetAllocation": {
+      "crypto": 20,
+      "taiwanStocks": 40,
+      "cash": 20,
+      "forex": 20
+    },
+    "annualReturn": 8.0,
+    "maxDrawdown": 15.0,
+    "emergencyFundMonths": 6
+  }
+} 

@@ -149,46 +149,282 @@
     font-size: 0.875rem;
 }
 
-/* Portfolio Management */
-.portfolio-management {
+/* Portfolio Overview */
+.portfolio-overview {
     padding: 80px 0;
     background: #1a1a1a;
 }
 
-.management-header {
+.overview-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 3rem;
 }
 
-.management-header h2 {
+.overview-header h2 {
     font-size: 2.5rem;
     color: #ffffff;
     font-weight: 700;
 }
 
-/* Asset List */
-.asset-list {
-    min-height: 400px;
+.update-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
-.empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: #b0bec5;
-}
-
-.empty-state i {
-    font-size: 4rem;
+.config-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     color: #64ffda;
-    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
-.empty-state h3 {
-    font-size: 1.5rem;
+.config-info i {
+    font-size: 1rem;
+}
+
+/* Asset Categories */
+.asset-categories {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+
+.category-card {
+    background: rgba(45, 45, 48, 0.6);
+    border: 1px solid rgba(100, 255, 218, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.category-card:hover {
+    border-color: rgba(100, 255, 218, 0.3);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(100, 255, 218, 0.1);
+}
+
+.category-card.liability {
+    border-color: rgba(244, 67, 54, 0.2);
+}
+
+.category-card.liability:hover {
+    border-color: rgba(244, 67, 54, 0.4);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
     margin-bottom: 1rem;
+}
+
+.category-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.category-icon.crypto {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
     color: #ffffff;
+}
+
+.category-icon.stocks {
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+    color: #ffffff;
+}
+
+.category-icon.cash {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    color: #ffffff;
+}
+
+.category-icon.forex {
+    background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+    color: #ffffff;
+}
+
+.category-icon.liability {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+    color: #ffffff;
+}
+
+.category-info {
+    flex-grow: 1;
+}
+
+.category-info h3 {
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.category-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #64ffda;
+    margin-bottom: 0.25rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.category-card.liability .category-value {
+    color: #f44336;
+}
+
+.category-change {
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.category-change.positive {
+    color: #4caf50;
+}
+
+.category-change.negative {
+    color: #f44336;
+}
+
+.category-change.neutral {
+    color: #9e9e9e;
+}
+
+.category-interest {
+    font-size: 0.875rem;
+    color: #b0bec5;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.category-weight {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #64ffda;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.category-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(100, 255, 218, 0.1);
+    display: none;
+}
+
+.category-card.expanded .category-details {
+    display: block;
+}
+
+.asset-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(100, 255, 218, 0.05);
+}
+
+.asset-detail:last-child {
+    border-bottom: none;
+}
+
+.asset-detail-info h4 {
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.asset-detail-info p {
+    color: #b0bec5;
+    font-size: 0.75rem;
+}
+
+.asset-detail-value {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.asset-detail-value .price {
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.asset-detail-value .change {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* Dividend Income Section */
+.dividend-section {
+    background: rgba(45, 45, 48, 0.4);
+    border: 1px solid rgba(100, 255, 218, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 3rem;
+}
+
+.dividend-section h3 {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.income-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.income-card {
+    background: rgba(26, 26, 26, 0.6);
+    border: 1px solid rgba(100, 255, 218, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.income-card:hover {
+    border-color: rgba(100, 255, 218, 0.3);
+    transform: translateY(-2px);
+}
+
+.income-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.income-info h4 {
+    color: #b0bec5;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.income-value {
+    color: #64ffda;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.income-value.negative {
+    color: #f44336;
 }
 
 .asset-item {
@@ -443,9 +679,68 @@
     color: #f44336;
 }
 
-/* Form Styles */
-.asset-form {
+/* Configuration Info Styles */
+.config-info-content {
     padding: 0 2rem 2rem;
+    line-height: 1.6;
+}
+
+.config-info-content p {
+    color: #b0bec5;
+    margin-bottom: 1.5rem;
+}
+
+.config-steps,
+.config-features {
+    margin-bottom: 2rem;
+}
+
+.config-steps h4,
+.config-features h4 {
+    color: #64ffda;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.config-steps ol {
+    color: #ffffff;
+    padding-left: 1.5rem;
+}
+
+.config-steps li {
+    margin-bottom: 0.5rem;
+}
+
+.config-steps code {
+    background: rgba(100, 255, 218, 0.1);
+    color: #64ffda;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+}
+
+.config-features ul {
+    list-style: none;
+    padding: 0;
+}
+
+.config-features li {
+    color: #b0bec5;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.config-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(100, 255, 218, 0.1);
 }
 
 .form-group {
