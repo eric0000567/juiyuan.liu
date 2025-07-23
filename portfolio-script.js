@@ -145,19 +145,26 @@ class LocalPortfolioManager {
             return;
         }
 
-        const detailsHTML = assets.map(asset => {
+                    const detailsHTML = assets.map(asset => {
             const currentPrice = this.getCurrentPrice(asset, category);
             const totalValue = this.calculateAssetValue(asset, category);
             const change = this.calculateAssetChange(asset, currentPrice, category);
+            
+            // 對於USDT計價的加密貨幣，顯示額外的價格資訊
+            let priceInfo = `$${this.formatNumber(totalValue)}`;
+            if (category === 'crypto' && asset.priceCurrency === 'USDT') {
+                const usdtPrice = this.getCurrentPriceInOriginalCurrency(asset, category);
+                priceInfo += `<br><small style="color: #b0bec5;">${usdtPrice.toFixed(2)} USDT</small>`;
+            }
             
             return `
                 <div class="asset-detail">
                     <div class="asset-detail-info">
                         <h4>${asset.name}</h4>
-                        <p>${asset.symbol} • ${this.formatQuantity(asset.quantity, category)}</p>
+                        <p>${asset.symbol} • ${this.formatQuantity(asset.quantity, category, asset)}</p>
                     </div>
                     <div class="asset-detail-value">
-                        <div class="price">$${this.formatNumber(totalValue)}</div>
+                        <div class="price">${priceInfo}</div>
                         <div class="change ${change.className}">${change.text}</div>
                     </div>
                 </div>
@@ -168,7 +175,7 @@ class LocalPortfolioManager {
     }
 
     /**
-     * 獲取當前價格
+     * 獲取當前價格（台幣）
      */
     getCurrentPrice(asset, category) {
         if (category === 'cash') {
@@ -179,7 +186,34 @@ class LocalPortfolioManager {
             return asset.amount; // 負債金額
         }
 
+        if (category === 'crypto') {
+            const priceData = this.currentPrices[asset.symbol];
+            if (priceData && typeof priceData === 'object') {
+                return priceData.twd; // 返回台幣價格
+            }
+            // 降級處理：如果是USDT計價，轉換為台幣
+            if (asset.priceCurrency === 'USDT') {
+                return asset.averageCost * (this.exchangeRates.USDT || 31.5);
+            }
+            return asset.averageCost;
+        }
+
         return this.currentPrices[asset.symbol] || asset.averageCost;
+    }
+
+    /**
+     * 獲取原始計價貨幣的價格（用於顯示）
+     */
+    getCurrentPriceInOriginalCurrency(asset, category) {
+        if (category === 'crypto' && asset.priceCurrency === 'USDT') {
+            const priceData = this.currentPrices[asset.symbol];
+            if (priceData && typeof priceData === 'object') {
+                return priceData.usdt; // 返回USDT價格
+            }
+            return asset.averageCost; // 返回購入時的USDT價格
+        }
+        
+        return this.getCurrentPrice(asset, category);
     }
 
     /**
@@ -210,6 +244,25 @@ class LocalPortfolioManager {
             };
         }
 
+        if (category === 'crypto' && asset.priceCurrency === 'USDT') {
+            // 對於USDT計價的加密貨幣，使用USDT價格計算變化
+            const currentUSDTPrice = this.getCurrentPriceInOriginalCurrency(asset, category);
+            const purchaseUSDTPrice = asset.averageCost;
+            
+            if (!currentUSDTPrice || currentUSDTPrice === purchaseUSDTPrice) {
+                return { className: 'neutral', text: '0.00%' };
+            }
+
+            const changePercent = ((currentUSDTPrice - purchaseUSDTPrice) / purchaseUSDTPrice) * 100;
+            const className = changePercent > 0 ? 'positive' : changePercent < 0 ? 'negative' : 'neutral';
+            const sign = changePercent >= 0 ? '+' : '';
+            
+            return {
+                className,
+                text: `${sign}${changePercent.toFixed(2)}% (USDT)`
+            };
+        }
+
         if (!currentPrice || currentPrice === asset.averageCost) {
             return { className: 'neutral', text: '0.00%' };
         }
@@ -227,9 +280,12 @@ class LocalPortfolioManager {
     /**
      * 格式化數量顯示
      */
-    formatQuantity(quantity, category) {
+    formatQuantity(quantity, category, asset = null) {
         switch (category) {
             case 'crypto':
+                if (asset && asset.priceCurrency === 'USDT') {
+                    return `${quantity.toLocaleString()} 個 • ${asset.averageCost.toLocaleString()} USDT/個`;
+                }
                 return `${quantity.toLocaleString()} 個`;
             case 'taiwanStocks':
                 return `${quantity.toLocaleString()} 股`;
@@ -279,6 +335,9 @@ class LocalPortfolioManager {
         if (cryptoAssets.length === 0) return;
 
         try {
+            // 首先獲取 USDT 對台幣的匯率
+            await this.updateUSDTRate();
+
             const symbols = cryptoAssets.map(asset => {
                 // 映射常見符號到 CoinGecko ID
                 const coinGeckoMap = {
@@ -296,8 +355,9 @@ class LocalPortfolioManager {
                 return coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
             }).join(',');
 
+            // 獲取 USDT 和 USD 價格
             const response = await fetch(
-                `https://api.coingecko.com/api/v3/simple/price?ids=${symbols}&vs_currencies=usd`
+                `https://api.coingecko.com/api/v3/simple/price?ids=${symbols}&vs_currencies=usd,usdt`
             );
 
             if (!response.ok) throw new Error('CoinGecko API 失敗');
@@ -319,14 +379,54 @@ class LocalPortfolioManager {
                 };
                 
                 const coinId = coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
-                if (data[coinId]?.usd) {
-                    // 轉換為台幣
-                    this.currentPrices[asset.symbol] = data[coinId].usd * (this.exchangeRates.USD || 31.5);
+                if (data[coinId]) {
+                    // 根據資產的計價貨幣決定使用哪個價格
+                    if (asset.priceCurrency === 'USDT' && data[coinId].usdt) {
+                        // 使用 USDT 價格，然後轉換為台幣
+                        this.currentPrices[asset.symbol] = {
+                            usdt: data[coinId].usdt,
+                            twd: data[coinId].usdt * (this.exchangeRates.USDT || 31.5),
+                            priceCurrency: 'USDT'
+                        };
+                    } else if (data[coinId].usd) {
+                        // 使用 USD 價格，轉換為台幣
+                        this.currentPrices[asset.symbol] = {
+                            usd: data[coinId].usd,
+                            twd: data[coinId].usd * (this.exchangeRates.USD || 31.5),
+                            priceCurrency: 'USD'
+                        };
+                    }
                 }
             });
 
         } catch (error) {
             console.error('更新加密貨幣價格失敗：', error);
+        }
+    }
+
+    /**
+     * 更新 USDT 對台幣匯率
+     */
+    async updateUSDTRate() {
+        try {
+            // 獲取 USDT 對 USD 的匯率 (通常接近1)
+            const usdtResponse = await fetch(
+                'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=usd'
+            );
+            
+            if (usdtResponse.ok) {
+                const usdtData = await usdtResponse.json();
+                const usdtToUsd = usdtData.tether?.usd || 1.0;
+                
+                // USDT 對台幣匯率 = USDT對USD匯率 × USD對台幣匯率
+                this.exchangeRates.USDT = usdtToUsd * (this.exchangeRates.USD || 31.5);
+                
+                console.log(`USDT/TWD 匯率: ${this.exchangeRates.USDT.toFixed(2)}`);
+            }
+        } catch (error) {
+            console.error('更新 USDT 匯率失敗：', error);
+            // 使用預設值
+            this.exchangeRates.USDT = this.exchangeRates.USD || 31.5;
         }
     }
 

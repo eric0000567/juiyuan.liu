@@ -3,7 +3,7 @@
     "name": "劉瑞源個人投資組合",
     "lastUpdate": "2024-01-01T00:00:00.000Z",
     "baseCurrency": "TWD",
-    "description": "個人資產配置與投資組合管理"
+    "description": "個人資產配置與投資組合管理 - 支援USDT計價與自動時間戳更新"
   },
   "assets": {
     "crypto": [
@@ -12,10 +12,11 @@
         "symbol": "BTC",
         "name": "比特幣",
         "quantity": 0.5,
-        "averageCost": 1200000,
+        "averageCost": 80000,
+        "priceCurrency": "USDT",
         "purchaseDate": "2023-06-15",
         "dividendRate": 0,
-        "notes": "長期持有策略",
+        "notes": "長期持有策略 - 以USDT計價",
         "platform": "幣安"
       },
       {
@@ -23,10 +24,11 @@
         "symbol": "ETH",
         "name": "以太幣",
         "quantity": 5.0,
-        "averageCost": 45000,
+        "averageCost": 2800,
+        "priceCurrency": "USDT",
         "purchaseDate": "2023-08-20",
         "dividendRate": 0,
-        "notes": "DeFi 生態系統投資",
+        "notes": "DeFi 生態系統投資 - 以USDT計價",
         "platform": "幣安"
       }
     ],

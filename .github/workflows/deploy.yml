@@ -34,8 +34,16 @@ jobs:
         npm install -g clean-css-cli
         npm install -g terser
     
-    - name: Optimize files
+    - name: Update timestamp and optimize files
       run: |
+        # Update portfolio config timestamp if exists
+        if [ -f "portfolio-config.json" ]; then
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          # Update lastUpdate field in portfolio-config.json
+          sed -i.bak "s/\"lastUpdate\": \"[^\"]*\"/\"lastUpdate\": \"$TIMESTAMP\"/" portfolio-config.json
+          echo "Updated timestamp to: $TIMESTAMP"
+        fi
+        
         # Create optimized directory
         mkdir -p dist
         
