@@ -195,6 +195,18 @@
     margin-bottom: 4rem;
 }
 
+@media (max-width: 1200px) {
+    .asset-categories {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .asset-categories {
+        grid-template-columns: 1fr;
+    }
+}
+
 .category-card {
     background: rgba(45, 45, 48, 0.6);
     border: 1px solid rgba(100, 255, 218, 0.1);
@@ -321,10 +333,31 @@
     padding-top: 1rem;
     border-top: 1px solid rgba(100, 255, 218, 0.1);
     display: none;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .category-card.expanded .category-details {
     display: block;
+}
+
+/* 自定義滾動條 */
+.category-details::-webkit-scrollbar {
+    width: 6px;
+}
+
+.category-details::-webkit-scrollbar-track {
+    background: rgba(45, 45, 48, 0.5);
+    border-radius: 3px;
+}
+
+.category-details::-webkit-scrollbar-thumb {
+    background: rgba(100, 255, 218, 0.3);
+    border-radius: 3px;
+}
+
+.category-details::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 255, 218, 0.5);
 }
 
 .asset-detail {

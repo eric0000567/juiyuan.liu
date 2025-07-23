@@ -154,7 +154,9 @@ class LocalPortfolioManager {
             let priceInfo = `$${this.formatNumber(totalValue)}`;
             if (category === 'crypto' && asset.priceCurrency === 'USDT') {
                 const usdtPrice = this.getCurrentPriceInOriginalCurrency(asset, category);
-                priceInfo += `<br><small style="color: #b0bec5;">${usdtPrice.toFixed(2)} USDT</small>`;
+                if (usdtPrice && !isNaN(usdtPrice)) {
+                    priceInfo += `<br><small style="color: #b0bec5;">${usdtPrice.toFixed(2)} USDT</small>`;
+                }
             }
             
             return `
@@ -350,7 +352,14 @@ class LocalPortfolioManager {
                     'XRP': 'ripple',
                     'DOT': 'polkadot',
                     'DOGE': 'dogecoin',
-                    'AVAX': 'avalanche-2'
+                    'AVAX': 'avalanche-2',
+                    'MAX': 'maxcoin',
+                    'MATIC': 'matic-network',
+                    'LINK': 'chainlink',
+                    'LTC': 'litecoin',
+                    'BCH': 'bitcoin-cash',
+                    'UNI': 'uniswap',
+                    'COMP': 'compound-governance-token'
                 };
                 return coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
             }).join(',');
@@ -375,7 +384,14 @@ class LocalPortfolioManager {
                     'XRP': 'ripple',
                     'DOT': 'polkadot',
                     'DOGE': 'dogecoin',
-                    'AVAX': 'avalanche-2'
+                    'AVAX': 'avalanche-2',
+                    'MAX': 'maxcoin',
+                    'MATIC': 'matic-network',
+                    'LINK': 'chainlink',
+                    'LTC': 'litecoin',
+                    'BCH': 'bitcoin-cash',
+                    'UNI': 'uniswap',
+                    'COMP': 'compound-governance-token'
                 };
                 
                 const coinId = coinGeckoMap[asset.symbol] || asset.symbol.toLowerCase();
@@ -396,6 +412,8 @@ class LocalPortfolioManager {
                             priceCurrency: 'USD'
                         };
                     }
+                } else {
+                    console.warn(`無法找到 ${asset.symbol} 的價格數據，CoinGecko ID: ${coinId}`);
                 }
             });
 
@@ -503,12 +521,13 @@ class LocalPortfolioManager {
     updateSummaryCards() {
         const totals = this.calculateTotals();
         
-        // 總資產價值
+        // 淨資產價值（資產-負債）
         document.getElementById('totalValue').textContent = 
-            `$${this.formatNumber(totals.totalAssets)}`;
+            `$${this.formatNumber(totals.netWorth)}`;
 
-        // 總變化
-        const totalChange = ((totals.totalAssets - totals.totalCost) / totals.totalCost) * 100;
+        // 總變化（基於總資產）
+        const totalChange = totals.totalCost > 0 ? 
+            ((totals.totalAssets - totals.totalCost) / totals.totalCost) * 100 : 0;
         const changeElement = document.getElementById('totalChange');
         const changeSign = totalChange >= 0 ? '+' : '';
         changeElement.textContent = `${changeSign}${totalChange.toFixed(2)}%`;
@@ -581,6 +600,8 @@ class LocalPortfolioManager {
         const result = {
             totalAssets: 0,
             totalCost: 0,
+            totalLiabilities: 0,
+            netWorth: 0,
             crypto: { value: 0, cost: 0, changePercent: 0 },
             taiwanStocks: { value: 0, cost: 0, changePercent: 0 },
             cash: { value: 0, cost: 0, changePercent: 0 },
@@ -592,22 +613,38 @@ class LocalPortfolioManager {
         Object.keys(this.config.assets).forEach(category => {
             const assets = this.config.assets[category] || [];
             
+            let totalLiabilityValue = 0;
+            let weightedInterestRate = 0;
+            
             assets.forEach(asset => {
-                const currentValue = this.calculateAssetValue(asset, category);
-                const cost = category === 'liabilities' ? 0 : asset.averageCost * asset.quantity;
-
-                if (category === 'liabilities') {
-                    result.liabilities.value += currentValue;
-                    if (asset.interestRate) {
-                        result.liabilities.avgRate += asset.interestRate * (currentValue / result.liabilities.value || 0);
+                try {
+                    const currentValue = this.calculateAssetValue(asset, category);
+                    
+                    if (category === 'liabilities') {
+                        result.liabilities.value += currentValue;
+                        totalLiabilityValue += currentValue;
+                        
+                        if (asset.interestRate && currentValue > 0) {
+                            weightedInterestRate += asset.interestRate * currentValue;
+                        }
+                    } else {
+                        const cost = this.calculateAssetCost(asset, category);
+                        if (!isNaN(currentValue) && !isNaN(cost)) {
+                            result[category].value += currentValue;
+                            result[category].cost += cost;
+                            result.totalAssets += currentValue;
+                            result.totalCost += cost;
+                        }
                     }
-                } else {
-                    result[category].value += currentValue;
-                    result[category].cost += cost;
-                    result.totalAssets += currentValue;
-                    result.totalCost += cost;
+                } catch (error) {
+                    console.error(`計算資產 ${asset.symbol} 時發生錯誤：`, error);
                 }
             });
+
+            // 計算負債的加權平均利率
+            if (category === 'liabilities' && totalLiabilityValue > 0) {
+                result.liabilities.avgRate = weightedInterestRate / totalLiabilityValue;
+            }
 
             // 計算變化百分比
             if (category !== 'liabilities' && result[category].cost > 0) {
@@ -616,40 +653,72 @@ class LocalPortfolioManager {
             }
         });
 
+        // 計算淨資產
+        result.totalLiabilities = result.liabilities.value;
+        result.netWorth = result.totalAssets - result.totalLiabilities;
+
         return result;
+    }
+
+    /**
+     * 計算資產成本
+     */
+    calculateAssetCost(asset, category) {
+        if (!asset || typeof asset.quantity === 'undefined' || typeof asset.averageCost === 'undefined') {
+            return 0;
+        }
+
+        if (category === 'cash') {
+            return asset.quantity; // 現金成本等於面額
+        }
+        
+        if (category === 'crypto' && asset.priceCurrency === 'USDT') {
+            // USDT計價的加密貨幣，轉換為台幣成本
+            const usdtRate = this.exchangeRates.USDT || 31.5;
+            return asset.averageCost * asset.quantity * usdtRate;
+        }
+        
+        return asset.averageCost * asset.quantity;
     }
 
     /**
      * 更新股息收益區塊
      */
     updateDividendSection() {
-        const dividendIncome = this.calculateAnnualDividend();
-        const interestExpense = this.calculateAnnualInterest();
-        const netIncome = dividendIncome - interestExpense;
+        const monthlyDividend = this.calculateMonthlyDividend();
+        const monthlyInterest = this.calculateMonthlyInterest();
+        const monthlyNetIncome = monthlyDividend - monthlyInterest;
 
         document.getElementById('dividendIncome').textContent = 
-            `$${this.formatNumber(dividendIncome)} / 年`;
+            `$${this.formatNumber(monthlyDividend)} / 月`;
         
         document.getElementById('interestExpense').textContent = 
-            `-$${this.formatNumber(interestExpense)} / 年`;
+            `-$${this.formatNumber(monthlyInterest)} / 月`;
         
         const netElement = document.getElementById('netIncome');
-        netElement.textContent = `$${this.formatNumber(netIncome)} / 年`;
-        netElement.className = `income-value ${netIncome >= 0 ? '' : 'negative'}`;
+        netElement.textContent = `$${this.formatNumber(monthlyNetIncome)} / 月`;
+        netElement.className = `income-value ${monthlyNetIncome >= 0 ? '' : 'negative'}`;
     }
 
     /**
-     * 計算年度股息收入
+     * 計算月度股息收入
      */
-    calculateAnnualDividend() {
+    calculateMonthlyDividend() {
         let totalDividend = 0;
 
         ['crypto', 'taiwanStocks', 'cash', 'forex'].forEach(category => {
-            const assets = this.config.assets[category] || [];
+                                const assets = this.config.assets[category] || [];
             assets.forEach(asset => {
-                if (asset.dividendRate && asset.dividendRate > 0) {
-                    const currentValue = this.calculateAssetValue(asset, category);
-                    totalDividend += currentValue * (asset.dividendRate / 100);
+                try {
+                    if (asset.dividendRate && asset.dividendRate > 0) {
+                        const currentValue = this.calculateAssetValue(asset, category);
+                        if (!isNaN(currentValue) && currentValue > 0) {
+                            // 年化利率除以12得到月利率
+                            totalDividend += currentValue * (asset.dividendRate / 100 / 12);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`計算 ${asset.symbol} 股息時發生錯誤：`, error);
                 }
             });
         });
@@ -658,15 +727,20 @@ class LocalPortfolioManager {
     }
 
     /**
-     * 計算年度利息支出
+     * 計算月度利息支出
      */
-    calculateAnnualInterest() {
+    calculateMonthlyInterest() {
         let totalInterest = 0;
 
         const liabilities = this.config.assets.liabilities || [];
         liabilities.forEach(liability => {
-            if (liability.interestRate && liability.interestRate > 0) {
-                totalInterest += liability.amount * (liability.interestRate / 100);
+            try {
+                if (liability.interestRate && liability.interestRate > 0 && liability.amount) {
+                    // 年化利率除以12得到月利率
+                    totalInterest += liability.amount * (liability.interestRate / 100 / 12);
+                }
+            } catch (error) {
+                console.error(`計算 ${liability.name} 利息時發生錯誤：`, error);
             }
         });
 
@@ -819,15 +893,17 @@ class LocalPortfolioManager {
 
         const snapshot = {
             timestamp,
-            totalValue: totals.totalAssets,
+            totalValue: totals.netWorth, // 改為記錄淨資產
+            totalAssets: totals.totalAssets,
+            totalLiabilities: totals.totalLiabilities,
             categories: {
                 crypto: totals.crypto.value,
                 taiwanStocks: totals.taiwanStocks.value,
                 cash: totals.cash.value,
                 forex: totals.forex.value
             },
-            dividendIncome: this.calculateAnnualDividend(),
-            interestExpense: this.calculateAnnualInterest()
+            monthlyDividend: this.calculateMonthlyDividend(),
+            monthlyInterest: this.calculateMonthlyInterest()
         };
 
         this.priceHistory.push(snapshot);
