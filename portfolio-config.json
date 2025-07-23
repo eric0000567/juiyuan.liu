@@ -3,7 +3,8 @@
     "name": "劉瑞源個人投資組合",
     "lastUpdate": "2024-01-01T00:00:00.000Z",
     "baseCurrency": "TWD",
-    "description": "個人資產配置與投資組合管理 - 支援USDT計價與自動時間戳更新"
+    "description": "個人資產配置與投資組合管理 - 支援USDT計價與自動時間戳更新",
+    "clearHistoryOnNextLoad": false
   },
   "assets": {
     "crypto": [

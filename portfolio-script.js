@@ -36,6 +36,22 @@ class LocalPortfolioManager {
     }
 
     /**
+     * 檢查是否需要清除歷史數據
+     */
+    checkClearHistory() {
+        if (this.config && this.config.portfolioInfo && this.config.portfolioInfo.clearHistoryOnNextLoad) {
+            console.log('偵測到清除歷史數據請求，正在清除...');
+            this.priceHistory = [];
+            this.saveHistoryData();
+            this.showNotification('歷史數據已清除（由配置檔案觸發）', 'success');
+            
+            // 清除完成後，移除配置中的清除標記
+            // 注意：這只會影響記憶體中的配置，不會修改實際檔案
+            this.config.portfolioInfo.clearHistoryOnNextLoad = false;
+        }
+    }
+
+    /**
      * 載入配置檔案
      */
     async loadConfig() {
@@ -46,6 +62,11 @@ class LocalPortfolioManager {
             }
             this.config = await response.json();
             console.log('配置載入成功:', this.config);
+            this.lastUpdate = this.config.portfolioInfo?.lastUpdate;
+            
+            // 檢查是否需要清除歷史數據
+            this.checkClearHistory();
+            
         } catch (error) {
             console.error('載入配置檔案失敗：', error);
             // 使用預設配置
