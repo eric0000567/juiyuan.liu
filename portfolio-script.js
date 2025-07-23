@@ -189,6 +189,14 @@ class LocalPortfolioManager {
         }
 
         if (category === 'crypto') {
+            // 檢查是否使用手動價格
+            if (asset.useManualPrice && asset.manualPrice) {
+                if (asset.priceCurrency === 'USDT') {
+                    return asset.manualPrice * (this.exchangeRates.USDT || 31.5);
+                }
+                return asset.manualPrice;
+            }
+
             const priceData = this.currentPrices[asset.symbol];
             if (priceData && typeof priceData === 'object') {
                 return priceData.twd; // 返回台幣價格
@@ -208,6 +216,11 @@ class LocalPortfolioManager {
      */
     getCurrentPriceInOriginalCurrency(asset, category) {
         if (category === 'crypto' && asset.priceCurrency === 'USDT') {
+            // 檢查是否使用手動價格
+            if (asset.useManualPrice && asset.manualPrice) {
+                return asset.manualPrice; // 返回手動設定的USDT價格
+            }
+
             const priceData = this.currentPrices[asset.symbol];
             if (priceData && typeof priceData === 'object') {
                 return priceData.usdt; // 返回USDT價格
@@ -353,7 +366,7 @@ class LocalPortfolioManager {
                     'DOT': 'polkadot',
                     'DOGE': 'dogecoin',
                     'AVAX': 'avalanche-2',
-                    'MAX': 'maxcoin',
+                    'MAX': 'max-exchange-token',  // 台灣 MAX 交易所代幣
                     'MATIC': 'matic-network',
                     'LINK': 'chainlink',
                     'LTC': 'litecoin',
@@ -385,7 +398,7 @@ class LocalPortfolioManager {
                     'DOT': 'polkadot',
                     'DOGE': 'dogecoin',
                     'AVAX': 'avalanche-2',
-                    'MAX': 'maxcoin',
+                    'MAX': 'max-exchange-token',  // 台灣 MAX 交易所代幣
                     'MATIC': 'matic-network',
                     'LINK': 'chainlink',
                     'LTC': 'litecoin',
@@ -1003,11 +1016,27 @@ class LocalPortfolioManager {
                 symbol: "BTC",
                 name: "比特幣",
                 quantity: 0.1,
-                averageCost: 1200000,
+                averageCost: 80000,
+                priceCurrency: "USDT",
                 purchaseDate: "2023-06-15",
                 dividendRate: 0,
-                notes: "範例資產",
+                useManualPrice: false,
+                manualPrice: 0,
+                notes: "範例資產 - USDT計價",
                 platform: "交易所名稱"
+            },{
+                id: "max_example",
+                symbol: "MAX",
+                name: "MAX Token",
+                quantity: 1000,
+                averageCost: 0.32,
+                priceCurrency: "USDT",
+                purchaseDate: "2023-06-15",
+                dividendRate: 2.5,
+                useManualPrice: true,
+                manualPrice: 0.37,
+                notes: "台灣MAX交易所代幣 - 使用手動價格",
+                platform: "MAX交易所"
             }],
             taiwanStocks: [{
                 id: "tsmc_example",
@@ -1075,6 +1104,18 @@ class LocalPortfolioManager {
      */
     showConfigGuide() {
         window.open('https://github.com/eric0000567/juiyuan.liu/blob/main/CONFIG_GUIDE.md', '_blank');
+    }
+
+    /**
+     * 清除歷史數據
+     */
+    clearHistoryData() {
+        if (confirm('確定要清除所有歷史數據嗎？此操作無法撤銷。')) {
+            this.priceHistory = [];
+            this.saveHistoryData();
+            this.updatePerformanceChart();
+            this.showNotification('歷史數據已清除', 'success');
+        }
     }
 
     /**

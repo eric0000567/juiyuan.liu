@@ -23,11 +23,11 @@
         "symbol": "MAX",
         "name": "MAX",
         "quantity": 21000,
-        "averageCost": 0.32,
-        "priceCurrency": "USDT",
+        "averageCost": 9.654,
+        "priceCurrency": "TWD",
         "purchaseDate": "2021-06-15",
         "dividendRate": 12.5,
-        "notes": "長期持有策略 - 以USDT計價",
+        "notes": "長期持有策略 - 以TWD計價",
         "platform": "MAX"
       },
       {
