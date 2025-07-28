@@ -24,6 +24,7 @@ class LocalPortfolioManager {
             await this.loadConfig();
             this.loadHistoryData();
             this.setupEventListeners();
+            this.checkAndProcessAutoPayments();  // 檢查自動還款
             await this.updateAllPrices();
             this.updateDisplay();
             this.initCharts();
@@ -48,6 +49,119 @@ class LocalPortfolioManager {
             // 清除完成後，移除配置中的清除標記
             // 注意：這只會影響記憶體中的配置，不會修改實際檔案
             this.config.portfolioInfo.clearHistoryOnNextLoad = false;
+        }
+    }
+
+    /**
+     * 檢查並處理自動還款
+     */
+    checkAndProcessAutoPayments() {
+        if (!this.config || !this.config.assets || !this.config.assets.liabilities) {
+            return;
+        }
+
+        const today = new Date();
+        let hasPayments = false;
+
+        this.config.assets.liabilities.forEach(liability => {
+            if (this.shouldProcessPayment(liability, today)) {
+                this.processLoanPayment(liability);
+                hasPayments = true;
+            }
+        });
+
+        if (hasPayments) {
+            this.saveConfigChanges();
+            this.showNotification('已處理自動還款', 'success');
+        }
+    }
+
+    /**
+     * 檢查是否應該處理還款
+     */
+    shouldProcessPayment(liability, today) {
+        if (!liability.autoPayment || !liability.paymentDay || !liability.monthlyPayment || liability.amount <= 0) {
+            return false;
+        }
+
+        // 檢查今天是否是還款日
+        const isPaymentDay = today.getDate() === liability.paymentDay;
+        
+        if (!isPaymentDay) {
+            return false;
+        }
+
+        // 檢查這個月是否已經扣款過
+        const currentYearMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+        const lastPaymentYearMonth = liability.lastPaymentYearMonth;
+        
+        // 如果這個月還沒有扣款過，則執行扣款
+        return currentYearMonth !== lastPaymentYearMonth;
+    }
+
+    /**
+     * 處理貸款還款
+     */
+    processLoanPayment(liability) {
+        const paymentAmount = liability.monthlyPayment;
+        const currentAmount = liability.amount;
+
+        // 確保不會還款超過剩餘金額
+        const actualPayment = Math.min(paymentAmount, currentAmount);
+        
+        // 扣除貸款金額
+        liability.amount -= actualPayment;
+        
+        // 記錄本次扣款的年月，防止重複扣款
+        const today = new Date();
+        liability.lastPaymentYearMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+        liability.lastPaymentDate = today.toISOString().split('T')[0];
+
+        console.log(`處理 ${liability.name} 還款：$${actualPayment.toLocaleString()}`);
+        console.log(`剩餘金額：$${liability.amount.toLocaleString()}`);
+        console.log(`記錄扣款月份：${liability.lastPaymentYearMonth}`);
+
+        // 如果貸款已還清
+        if (liability.amount <= 0) {
+            liability.amount = 0;
+            liability.autoPayment = false;
+            this.showNotification(`🎉 ${liability.name} 已還清！`, 'success');
+        } else {
+            this.showNotification(`💳 ${liability.name} 本月已扣款 $${actualPayment.toLocaleString()}`, 'success');
+        }
+    }
+
+
+
+    /**
+     * 保存配置變更（注意：這只更新記憶體中的配置，實際檔案需要手動更新）
+     */
+    saveConfigChanges() {
+        // 在實際應用中，這裡可能需要與後端API溝通或提示用戶手動更新配置檔案
+        // 目前我們只在記憶體中更新，並在本地存儲中記錄變更
+        try {
+            const paymentHistory = this.getPaymentHistory();
+            paymentHistory.push({
+                timestamp: new Date().toISOString(),
+                config: JSON.parse(JSON.stringify(this.config.assets.liabilities))
+            });
+            
+            localStorage.setItem('portfolioPaymentHistory', JSON.stringify(paymentHistory));
+        } catch (error) {
+            console.error('保存還款歷史失敗：', error);
+        }
+    }
+
+    /**
+     * 獲取還款歷史
+     */
+    getPaymentHistory() {
+        try {
+            const history = localStorage.getItem('portfolioPaymentHistory');
+            return history ? JSON.parse(history) : [];
+        } catch (error) {
+            console.error('載入還款歷史失敗：', error);
+            return [];
         }
     }
 
@@ -186,12 +300,52 @@ class LocalPortfolioManager {
                     priceInfo += `<br><small style="color: #b0bec5;">${usdtPrice.toFixed(2)} USDT</small>`;
                 }
             }
+
+            // 對於負債，顯示還款相關信息
+            let additionalInfo = '';
+            if (category === 'liabilities' && asset.autoPayment) {
+                const monthlyPayment = asset.monthlyPayment ? `$${asset.monthlyPayment.toLocaleString()}` : 'N/A';
+                const paymentDay = asset.paymentDay ? `每月${asset.paymentDay}號` : 'N/A';
+                const lastPaymentDate = asset.lastPaymentDate ? new Date(asset.lastPaymentDate).toLocaleDateString('zh-TW') : '尚未扣款';
+                
+                // 計算下次扣款日期
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+                let nextPaymentMonth = currentMonth;
+                let nextPaymentYear = currentYear;
+                
+                // 如果本月的還款日已過，下次扣款是下個月
+                if (today.getDate() > asset.paymentDay) {
+                    nextPaymentMonth += 1;
+                    if (nextPaymentMonth > 11) {
+                        nextPaymentMonth = 0;
+                        nextPaymentYear += 1;
+                    }
+                }
+                
+                const nextPaymentDate = new Date(nextPaymentYear, nextPaymentMonth, asset.paymentDay);
+                const nextPaymentDateStr = nextPaymentDate.toLocaleDateString('zh-TW');
+                
+                additionalInfo = `
+                    <div style="margin-top: 8px; font-size: 0.85em; color: #b0bec5;">
+                        <div>月付金額: ${monthlyPayment}</div>
+                        <div>還款日期: ${paymentDay}</div>
+                        <div>上次扣款: ${lastPaymentDate}</div>
+                        <div>下次扣款: ${nextPaymentDateStr}</div>
+                        <div style="color: ${asset.autoPayment ? '#4caf50' : '#ff9800'};">
+                            ${asset.autoPayment ? '✅ 自動扣款' : '⏸️ 手動還款'}
+                        </div>
+                    </div>
+                `;
+            }
             
             return `
                 <div class="asset-detail">
                     <div class="asset-detail-info">
                         <h4>${asset.name}</h4>
                         <p>${asset.symbol} • ${this.formatQuantity(asset.quantity, category, asset)}</p>
+                        ${additionalInfo}
                     </div>
                     <div class="asset-detail-value">
                         <div class="price">${priceInfo}</div>
@@ -1039,6 +1193,7 @@ class LocalPortfolioManager {
      * 刷新數據
      */
     async refreshData() {
+        this.checkAndProcessAutoPayments();  // 每次刷新時檢查還款
         await this.updateAllPrices();
         this.updateDisplay();
         this.updateCharts();

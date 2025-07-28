@@ -80,10 +80,13 @@
         "symbol": "CREDIT_DEBT",
         "name": "信用貸款",
         "quantity": 1,
-        "amount": 1354176,
+        "amount": 1344123,
         "interestRate": 3.18,
         "startDate": "2025-02-08",
         "termYears": 10,
+        "monthlyPayment": 13642,
+        "autoPayment": true,
+        "paymentDay": 26,
         "notes": "信貸",
         "bank": "LINE Bank"
       }
